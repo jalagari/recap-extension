@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Recap</title>
+  <link rel="stylesheet" href="panel.css">
+  <link rel="stylesheet" href="../lib/rrweb-player.min.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header with Mode Toggle -->
+    <header class="header">
+      <div class="logo">
+        <div class="logo-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+            <circle cx="12" cy="12" r="4" fill="#dc2626"/>
+          </svg>
+        </div>
+        <span>Recap</span>
+      </div>
+      
+      <!-- Mode Toggle -->
+      <div class="mode-toggle">
+        <button class="mode-btn active" data-mode="trainer" title="Create configuration by recording">
+          🎓 Trainer
+        </button>
+        <button class="mode-btn" data-mode="tester" title="Test production SDK with config">
+          🧪 Tester
+        </button>
+      </div>
+    </header>
+
+    <!-- ============================================ -->
+    <!-- TRAINER MODE -->
+    <!-- ============================================ -->
+    <div id="mode-trainer" class="mode-panel active">
+      
+      <!-- Recording Controls -->
+      <section class="recording-section">
+        <div class="form-identifier">
+          <input type="text" id="form-name" placeholder="Form name (auto-detected)" aria-label="Form name">
+        </div>
+        
+        <div class="recording-controls">
+          <div class="recording-status" id="recording-status">
+            <span class="status-indicator"></span>
+            <span class="status-text">Ready to record</span>
+            <span class="recording-time" id="recording-time">00:00</span>
+          </div>
+          <button id="btn-record" class="btn btn-record">
+            <svg class="icon-record" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <circle cx="12" cy="12" r="8"/>
+            </svg>
+            <span class="btn-text">Start Recording</span>
+          </button>
+        </div>
+
+        <div class="sampling-control">
+          <label>Sampling</label>
+          <input type="range" id="sampling-rate" min="0" max="100" value="25" aria-label="Sampling Rate">
+          <span id="sampling-value">25%</span>
+        </div>
+      </section>
+
+      <!-- Trainer Tabs -->
+      <nav class="tabs">
+        <button class="tab active" data-tab="timeline">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+          </svg>
+          Timeline
+          <span class="tab-badge" id="event-count">0</span>
+        </button>
+        <button class="tab" data-tab="replay">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="5 3 19 12 5 21 5 3"/>
+          </svg>
+          Replay
+        </button>
+        <button class="tab" data-tab="config">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+          Config
+        </button>
+        <button class="tab" data-tab="ignored">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+            <line x1="1" y1="1" x2="23" y2="23"/>
+          </svg>
+          Ignored
+          <span class="tab-badge" id="ignored-count" style="display:none;">0</span>
+        </button>
+      </nav>
+
+      <!-- Trainer Tab Content -->
+      <div class="tab-content">
+        <!-- Timeline Tab -->
+        <div id="tab-timeline" class="tab-panel active">
+          <div class="timeline-filters">
+            <button class="filter-btn active" data-filter="all">All</button>
+            <button class="filter-btn" data-filter="input">⌨️ Input</button>
+            <button class="filter-btn" data-filter="click">🖱️ Click</button>
+            <button class="filter-btn" data-filter="network">📡 Network</button>
+            <button class="filter-btn" data-filter="error">❌ Error</button>
+            <label class="show-all-toggle" title="Show focus, blur, scroll events">
+              <input type="checkbox" id="toggle-show-all">
+              <span>All</span>
+            </label>
+          </div>
+          <div id="event-timeline" class="event-timeline">
+            <div class="empty-state">
+              <div class="empty-icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+                  <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4" fill="currentColor" opacity="0.3"/>
+                </svg>
+              </div>
+              <h3>Ready to Record</h3>
+              <p>Click "Start Recording" and interact with the form.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Replay Tab -->
+        <div id="tab-replay" class="tab-panel">
+          <div class="replay-section">
+            <div class="replay-header">
+              <h3>Session Replay</h3>
+              <div class="replay-info">
+                <span id="replay-event-count">0 events</span>
+                <span id="replay-duration">00:00</span>
+              </div>
+            </div>
+            <div id="replay-container" class="replay-container">
+              <div class="empty-state">
+                <h3>No Recording Yet</h3>
+                <p>Record a session first.</p>
+              </div>
+            </div>
+            <div id="replay-controls" class="replay-controls" style="display:none">
+              <button id="btn-play-replay" class="btn btn-ghost">▶ Play</button>
+              <button id="btn-fullscreen" class="btn btn-ghost">⛶ Fullscreen</button>
+              <button id="btn-apply-config" class="btn btn-ghost">Apply Config</button>
+              <button id="btn-download-recording" class="btn btn-ghost">⬇ Download</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Config Tab -->
+        <div id="tab-config" class="tab-panel">
+          <div class="config-section">
+            <div class="config-header">
+              <h3>🔒 Masking</h3>
+            </div>
+            <div id="mask-fields" class="config-list">
+              <div class="empty-hint">Click "Mask" on input events</div>
+            </div>
+          </div>
+
+          <div class="config-section">
+            <div class="config-header">
+              <h3>📡 Network Scrubbing</h3>
+              <button id="btn-select-keys" class="btn btn-ghost btn-sm">Select Keys</button>
+            </div>
+            <div id="scrub-keys" class="config-list">
+              <div class="empty-hint">Select keys to scrub from network payloads</div>
+            </div>
+          </div>
+
+          <div class="config-section">
+            <div class="config-header">
+              <h3>📍 Journey Steps</h3>
+            </div>
+            <div id="journey-steps" class="config-list">
+              <div class="empty-hint">Click "Mark Step" on click events</div>
+            </div>
+          </div>
+
+          <div class="config-section">
+            <div class="config-header">
+              <h3>✅ Success Trigger</h3>
+            </div>
+            <div id="success-trigger" class="config-item-single">
+              <div class="empty-hint">Click "Mark as Success" on a submit event</div>
+            </div>
+          </div>
+
+          <div class="config-section">
+            <h3>⚙️ Options</h3>
+            <label class="checkbox">
+              <input type="checkbox" id="mask-all-inputs">
+              <span>Mask all inputs by default</span>
+            </label>
+            <label class="checkbox">
+              <input type="checkbox" id="capture-console" checked>
+              <span>Capture console errors</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Ignored Tab -->
+        <div id="tab-ignored" class="tab-panel">
+          <div class="ignored-intro">
+            <p>Hidden fields (display:none, type=hidden, off-screen) are auto-detected and excluded from recording.</p>
+          </div>
+          <div id="ignored-fields-list" class="ignored-fields-list">
+            <div class="empty-state">
+              <h3>No Hidden Fields</h3>
+              <p>Hidden fields will appear here during recording.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Trainer Footer -->
+      <footer class="footer">
+        <button id="btn-reset" class="btn btn-ghost">Reset</button>
+        <button id="btn-save" class="btn btn-primary" disabled>💾 Save Config</button>
+        <button id="btn-export" class="btn btn-ghost">⬇ Export</button>
+      </footer>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- TESTER MODE -->
+    <!-- ============================================ -->
+    <div id="mode-tester" class="mode-panel">
+      
+      <!-- Tester Header -->
+      <section class="tester-header-section">
+        <div class="tester-config-source">
+          <label>Configuration Source</label>
+          <div class="config-source-buttons">
+            <button id="btn-use-current-config" class="btn btn-primary btn-sm">
+              Use Current Config
+            </button>
+            <button id="btn-load-config-file" class="btn btn-ghost btn-sm">
+              📁 Load File
+            </button>
+            <input type="file" id="config-file-input" accept=".json" style="display:none">
+          </div>
+        </div>
+        <div id="tester-config-status" class="tester-config-status">
+          <span class="status-icon">⚠️</span>
+          <span class="status-text">No config loaded</span>
+        </div>
+      </section>
+
+      <!-- Tester Tabs -->
+      <nav class="tabs tester-tabs">
+        <button class="tab active" data-tab="tester-capture">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4" fill="currentColor"/>
+          </svg>
+          Capture
+        </button>
+        <button class="tab" data-tab="tester-sessions">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/>
+          </svg>
+          Sessions
+          <span class="tab-badge" id="session-count">0</span>
+        </button>
+        <button class="tab" data-tab="tester-validation">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+          </svg>
+          Validation
+        </button>
+      </nav>
+
+      <!-- Tester Tab Content -->
+      <div class="tab-content tester-content">
+        <!-- Capture Tab -->
+        <div id="tab-tester-capture" class="tab-panel active">
+          <div class="capture-section">
+            <div class="capture-status" id="capture-status">
+              <div class="status-indicator idle">
+                <span class="status-dot"></span>
+                <span class="status-text">Ready to test</span>
+              </div>
+            </div>
+            
+            <div class="capture-actions">
+              <button id="btn-inject-start" class="btn btn-primary btn-lg" disabled>
+                🚀 Start Test Recording
+              </button>
+              <button id="btn-stop-capture" class="btn btn-danger btn-lg" style="display:none">
+                ⏹ Stop & Save Session
+              </button>
+            </div>
+            
+            <div class="capture-info">
+              <p>Simulates production SDK:</p>
+              <ol>
+                <li>Click <strong>Start</strong> to inject rrweb with your config</li>
+                <li>Interact with the page (recording is active)</li>
+                <li>Click <strong>Stop & Save</strong> to capture session</li>
+                <li>Review in <strong>Sessions</strong> tab</li>
+              </ol>
+            </div>
+            
+            <div class="capture-preview">
+              <h4>Config Preview</h4>
+              <pre id="tester-config-preview">No config loaded</pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sessions Tab -->
+        <div id="tab-tester-sessions" class="tab-panel">
+          <div class="sessions-header">
+            <h3>Captured Sessions</h3>
+            <div class="sessions-actions">
+              <button id="btn-clear-sessions" class="btn btn-ghost btn-sm">🗑 Clear All</button>
+            </div>
+          </div>
+          <div class="sessions-info">
+            <small>Keeps last 3 sessions • Auto-clears after 2 days</small>
+          </div>
+          <div id="sessions-list" class="sessions-list">
+            <div class="empty-state">
+              <h3>No Sessions Yet</h3>
+              <p>Capture a session using the Capture tab.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Validation Tab -->
+        <div id="tab-tester-validation" class="tab-panel">
+          <div class="validation-section">
+            <div class="validation-header">
+              <h3>Config Validation</h3>
+              <button id="btn-run-validation" class="btn btn-primary btn-sm" disabled>
+                🔍 Validate Config
+              </button>
+            </div>
+            <div class="validation-info">
+              <p>Checks if your config selectors match elements on the current page.</p>
+            </div>
+            <div id="validation-results" class="validation-results">
+              <div class="empty-state">
+                <p>Load a config and click "Validate" to check selectors.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tester Footer -->
+      <footer class="footer tester-footer">
+        <span class="footer-info">Production SDK Tester</span>
+      </footer>
+    </div>
+  </div>
+
+  <!-- Session Replay Modal -->
+  <div id="session-replay-modal" class="modal" style="display:none">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content fullscreen-player">
+      <div class="modal-header">
+        <h3>Session Replay</h3>
+        <button class="modal-close">&times;</button>
+      </div>
+      <div id="session-player-container" class="fullscreen-player-container"></div>
+    </div>
+  </div>
+
+  <!-- Event Detail Modal -->
+  <div id="event-modal" class="modal" style="display:none">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modal-title">Event Details</h3>
+        <button class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body" id="modal-body"></div>
+      <div class="modal-actions" id="modal-actions"></div>
+    </div>
+  </div>
+
+  <!-- Fullscreen Replay Modal (Trainer) -->
+  <div id="replay-modal" class="modal replay-fullscreen" style="display:none">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content fullscreen-player">
+      <div class="modal-header">
+        <h3>Session Replay</h3>
+        <button class="modal-close">&times;</button>
+      </div>
+      <div id="fullscreen-player-container" class="fullscreen-player-container"></div>
+    </div>
+  </div>
+
+  <!-- rrweb-player for replay -->
+  <script src="../lib/rrweb-player.min.js"></script>
+  
+  <!-- Modular architecture - load in order -->
+  <script src="modules/core.js"></script>
+  <script src="modules/player.js"></script>
+  <script src="modules/recording.js"></script>
+  <script src="modules/timeline.js"></script>
+  <script src="modules/config.js"></script>
+  <script src="modules/tester.js"></script>
+  <script src="panel.js"></script>
+</body>
+</html>

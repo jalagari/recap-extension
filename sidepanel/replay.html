@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Recap - Replay</title>
+  <link rel="stylesheet" href="../lib/rrweb-player.min.css">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      background: #f5f5f5;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background: white;
+      border-bottom: 1px solid #e4e4e7;
+    }
+
+    .header h1 {
+      font-size: 14px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .header h1 svg {
+      color: #dc2626;
+    }
+
+    .btn {
+      padding: 8px 12px;
+      font-size: 12px;
+      font-weight: 500;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: #52525b;
+    }
+
+    .btn-ghost:hover {
+      background: #f5f5f5;
+    }
+
+    .info-bar {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 10px 16px;
+      background: white;
+      border-bottom: 1px solid #e4e4e7;
+      font-size: 12px;
+      color: #71717a;
+    }
+
+    .info-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .info-value {
+      color: #18181b;
+      font-weight: 500;
+    }
+
+    .player-container {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      overflow: auto;
+    }
+
+    .player-wrapper {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #71717a;
+    }
+
+    .empty-state svg {
+      margin-bottom: 16px;
+      opacity: 0.4;
+    }
+
+    .empty-state h2 {
+      font-size: 16px;
+      color: #52525b;
+      margin-bottom: 8px;
+    }
+
+    .empty-state p {
+      font-size: 13px;
+    }
+
+    .masking-indicator {
+      position: fixed;
+      bottom: 16px;
+      right: 16px;
+      background: #7c3aed;
+      color: white;
+      padding: 8px 14px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 2px 8px rgba(124, 58, 237, 0.3);
+    }
+
+    /* Override rrweb player styles */
+    .rr-player {
+      border-radius: 8px;
+    }
+
+    .rr-controller {
+      background: #fafafa !important;
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <h1>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polygon points="5 3 19 12 5 21 5 3"/>
+      </svg>
+      Session Replay
+    </h1>
+    <button class="btn btn-ghost" id="btn-close">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="18" y1="6" x2="6" y2="18"/>
+        <line x1="6" y1="6" x2="18" y2="18"/>
+      </svg>
+      Close
+    </button>
+  </header>
+
+  <div class="info-bar" id="info-bar">
+    <div class="info-item">
+      <span>Events:</span>
+      <span class="info-value" id="event-count">0</span>
+    </div>
+    <div class="info-item">
+      <span>Duration:</span>
+      <span class="info-value" id="duration">0:00</span>
+    </div>
+    <div class="info-item">
+      <span>Masked fields:</span>
+      <span class="info-value" id="masked-count">0</span>
+    </div>
+  </div>
+
+  <div class="player-container">
+    <div id="player-wrapper" class="player-wrapper">
+      <div class="empty-state" id="empty-state">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+          <circle cx="12" cy="12" r="10"/>
+          <polygon points="10 8 16 12 10 16 10 8" fill="currentColor" opacity="0.3"/>
+        </svg>
+        <h2>No Recording Available</h2>
+        <p>Record a session first, then click "Replay" to preview.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="masking-indicator" id="masking-indicator" style="display: none;">
+    🔒 Masking Applied
+  </div>
+
+  <script src="../lib/rrweb-player.min.js"></script>
+  <script>
+    let player = null;
+
+    // Load recording data from storage
+    async function loadRecording() {
+      try {
+        const result = await chrome.storage.local.get(['recap_recording', 'recap_config']);
+        
+        const events = result.recap_recording || [];
+        const config = result.recap_config || {};
+
+        if (events.length === 0) {
+          document.getElementById('empty-state').style.display = 'block';
+          return;
+        }
+
+        document.getElementById('empty-state').style.display = 'none';
+
+        // Update info bar
+        document.getElementById('event-count').textContent = events.length;
+        document.getElementById('masked-count').textContent = 
+          (config.maskingRules?.selectors?.length || 0);
+
+        // Calculate duration
+        if (events.length >= 2) {
+          const duration = (events[events.length - 1].timestamp - events[0].timestamp) / 1000;
+          const mins = Math.floor(duration / 60);
+          const secs = Math.floor(duration % 60);
+          document.getElementById('duration').textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        // Show masking indicator if masks are configured
+        if (config.maskingRules?.selectors?.length > 0) {
+          document.getElementById('masking-indicator').style.display = 'flex';
+        }
+
+        // Create player
+        const wrapper = document.getElementById('player-wrapper');
+        wrapper.innerHTML = '';
+
+        player = new rrwebPlayer({
+          target: wrapper,
+          props: {
+            events: events,
+            width: 800,
+            height: 500,
+            autoPlay: false,
+            showController: true,
+            speedOption: [1, 2, 4, 8],
+          },
+        });
+
+        console.log('[Recap Replay] Player initialized with', events.length, 'events');
+
+      } catch (error) {
+        console.error('[Recap Replay] Failed to load recording:', error);
+        document.getElementById('empty-state').innerHTML = `
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="1">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="15" y1="9" x2="9" y2="15"/>
+            <line x1="9" y1="9" x2="15" y2="15"/>
+          </svg>
+          <h2>Error Loading Recording</h2>
+          <p>${error.message}</p>
+        `;
+      }
+    }
+
+    // Close button
+    document.getElementById('btn-close').addEventListener('click', () => {
+      window.close();
+    });
+
+    // Initialize
+    loadRecording();
+  </script>
+</body>
+</html>
+
+

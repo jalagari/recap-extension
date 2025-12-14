@@ -1,0 +1,59 @@
+{
+  "manifest_version": 3,
+  "name": "Recap - Record, Capture, Playback",
+  "version": "3.0.0",
+  "description": "Record form sessions and configure privacy masking, network scrubbing, and journey mapping for AEM Forms",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png"
+    },
+    "default_title": "Open Recap Panel"
+  },
+  "side_panel": {
+    "default_path": "sidepanel/panel.html"
+  },
+  "permissions": [
+    "activeTab",
+    "storage",
+    "scripting",
+    "sidePanel",
+    "tabs"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background/service-worker.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content/content.js"],
+      "css": ["content/content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "content/overlay.css",
+        "content/injected.js",
+        "lib/rrweb.min.js",
+        "lib/rrweb-player.min.js",
+        "lib/rrweb-player.min.css",
+        "lib/rrweb-plugin-console-record.min.js",
+        "lib/rrweb-utils.js",
+        "lib/recorder.js"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}
+

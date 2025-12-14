@@ -1,0 +1,24 @@
+{
+  "name": "rum-session-trainer",
+  "version": "1.0.0",
+  "description": "Chrome Extension for configuring RUM session recording rules",
+  "type": "module",
+  "scripts": {
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "watch": "chokidar '**/*.js' '**/*.css' '**/*.html' -c 'echo Reload extension in Chrome'"
+  },
+  "devDependencies": {
+    "chokidar-cli": "^3.0.0",
+    "eslint": "^8.56.0"
+  },
+  "keywords": [
+    "chrome-extension",
+    "session-recording",
+    "rum",
+    "aem"
+  ],
+  "license": "MIT"
+}
+
+

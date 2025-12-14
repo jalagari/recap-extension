@@ -1,0 +1,42 @@
+/* RUM Trainer - Content Script Styles */
+
+/* Highlight overlay - injected via JS for more control */
+
+/* Preview masked elements */
+.rum-preview-masked {
+  position: relative !important;
+}
+
+.rum-preview-masked::after {
+  content: '🔒 MASKED';
+  position: absolute !important;
+  inset: 0 !important;
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(239, 68, 68, 0.1),
+    rgba(239, 68, 68, 0.1) 10px,
+    rgba(239, 68, 68, 0.2) 10px,
+    rgba(239, 68, 68, 0.2) 20px
+  ) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: #ef4444 !important;
+  font-weight: bold !important;
+  font-size: 12px !important;
+  pointer-events: none !important;
+  border: 2px dashed #ef4444 !important;
+  border-radius: 4px !important;
+  z-index: 999999 !important;
+}
+
+/* Selection mode cursor */
+body.rum-selection-mode {
+  cursor: crosshair !important;
+}
+
+body.rum-selection-mode * {
+  cursor: crosshair !important;
+}
+
+
