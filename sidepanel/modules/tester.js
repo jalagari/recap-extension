@@ -738,17 +738,21 @@
       if (captureStatus) {
         const indicator = captureStatus.querySelector('.status-indicator');
         const text = captureStatus.querySelector('.status-text');
+        const dot = captureStatus.querySelector('.status-dot');
 
         indicator?.classList.remove('idle', 'ready', 'recording');
 
         if (this.recording) {
           indicator?.classList.add('recording');
-          if (text) text.textContent = '🔴 Recording in progress...';
+          if (dot) dot.style.display = 'inline-block';
+          if (text) text.textContent = 'Recording in progress...';
         } else if (State.testerConfig) {
           indicator?.classList.add('ready');
+          if (dot) dot.style.display = 'none';  // Hide dot, emoji in text
           if (text) text.textContent = '✅ Ready to capture';
         } else {
           indicator?.classList.add('idle');
+          if (dot) dot.style.display = 'inline-block';
           if (text) text.textContent = 'Load a config to begin';
         }
       }
