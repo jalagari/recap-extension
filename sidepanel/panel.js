@@ -14,7 +14,7 @@ window.Recap = window.Recap || {};
     DOM, State, Toast, Modal, Messaging, MessageTypes, EventTypes, Log,
     Recording, Stats, Timeline, IgnoredFields,
     ConfigUI, ConfigExport, EventActions,
-    Player, Tester
+    Player, Tester, Storage, Dashboard, Library
   } = window.Recap;
 
   // ============================================================================
@@ -30,17 +30,23 @@ window.Recap = window.Recap || {};
       Log.debug('TrainerReplay.init called, container:', !!container, 'events:', State.rrwebEvents.length);
       if (!container) return;
 
-      // Destroy existing player
-      if (State.replayPlayer) {
-        try { State.replayPlayer.$destroy?.(); } catch(e) {}
-        State.replayPlayer = null;
-      }
+      // Destroy existing player using Player module
+      Player.destroy(container);
+      State.replayPlayer = null;
 
       if (!State.rrwebEvents.length) {
-        container.innerHTML = Player.renderEmpty('No Recording Yet', 'Record a session first');
-        if (controls) controls.style.display = 'none';
+        container.innerHTML = Player.renderEmpty('No Recording Yet', 'Record or load a session');
+        // Hide playback controls but keep upload button
+        DOM.$('btn-apply-config')?.style && (DOM.$('btn-apply-config').style.display = 'none');
+        DOM.$('btn-download-recording')?.style && (DOM.$('btn-download-recording').style.display = 'none');
+        DOM.$('btn-fullscreen')?.style && (DOM.$('btn-fullscreen').style.display = 'none');
         return;
       }
+
+      // Show all controls when we have events
+      DOM.$('btn-apply-config')?.style && (DOM.$('btn-apply-config').style.display = '');
+      DOM.$('btn-download-recording')?.style && (DOM.$('btn-download-recording').style.display = '');
+      DOM.$('btn-fullscreen')?.style && (DOM.$('btn-fullscreen').style.display = '');
 
       // Apply masking if enabled
       let events = State.rrwebEvents;
@@ -50,16 +56,20 @@ window.Recap = window.Recap || {};
         Log.debug('Applied masking to', events.length, 'events');
       }
 
-      container.innerHTML = '';
-      if (controls) controls.style.display = 'flex';
-
-      // Create player using shared module
-      Log.debug('Creating player with', events.length, 'events in container:', container.id);
+      // Create player using shared module with fullscreen callback
+      // Get actual container dimensions
+      const rect = container.getBoundingClientRect();
+      const width = rect.width || container.clientWidth || 400;
+      const height = rect.height || container.clientHeight || 300;
+      
+      Log.debug('Creating player with', events.length, 'events in container:', container.id, 'dimensions:', width, 'x', height);
       try {
         State.replayPlayer = Player.create(container, events, {
-          width: 340,
-          height: 220,
-          autoPlay: false
+          width: width,
+          height: height - 50, // Leave room for controls
+          autoPlay: false,
+          showFullscreen: true,
+          onFullscreen: () => this.openFullscreen()
         });
         Log.debug('Player created:', !!State.replayPlayer);
       } catch (e) {
@@ -83,16 +93,12 @@ window.Recap = window.Recap || {};
       if (btn) {
         if (this.maskingEnabled) {
           btn.classList.add('active');
-          btn.textContent = '✓ Config Applied';
+          btn.innerHTML = '✓ Masking Applied';
         } else {
           btn.classList.remove('active');
-          btn.textContent = 'Apply Config';
+          btn.innerHTML = '🔧 Apply Masking';
         }
       }
-    },
-
-    play() {
-      State.replayPlayer?.play?.();
     },
 
     openFullscreen() {
@@ -162,6 +168,8 @@ window.Recap = window.Recap || {};
 
       if (mode === 'tester') {
         Tester.init();
+      } else if (mode === 'library') {
+        Library?.refresh?.();
       }
 
       Log.debug('Switched to mode:', mode);
@@ -239,11 +247,20 @@ window.Recap = window.Recap || {};
       Log.info(`Panel v${window.Recap.Config.VERSION}`);
 
       try {
+        // Initialize storage first
+        await Storage?.init?.('indexeddb');
+        
         await this.getActiveTab();
         this.setupEventListeners();
         this.setupMessageListeners();
         await this.loadConfig();
         this.checkRrwebStatus();
+        
+        // Initialize Dashboard (storage management)
+        await Dashboard?.init?.();
+        
+        // Initialize Library
+        await Library?.init?.();
       } catch (e) {
         Log.error('Init failed:', e);
         Toast.error('Initialization failed');
@@ -338,14 +355,63 @@ window.Recap = window.Recap || {};
         Timeline.render();
         Toast.info('Reset complete');
       });
-      DOM.$('btn-save')?.addEventListener('click', () => ConfigExport.save());
+      DOM.$('btn-save-library')?.addEventListener('click', async () => {
+        // Save both config and recording to library
+        try {
+          await Library?.saveCurrentConfig?.();
+          if (State.rrwebEvents?.length) {
+            await Library?.saveCurrentRecording?.();
+          }
+        } catch (e) {
+          Toast.error('Save failed: ' + e.message);
+        }
+      });
       DOM.$('btn-export')?.addEventListener('click', () => ConfigExport.download());
 
-      // Replay
-      DOM.$('btn-play-replay')?.addEventListener('click', () => TrainerReplay.play());
+      // Replay controls (play/pause now built into player)
       DOM.$('btn-fullscreen')?.addEventListener('click', () => TrainerReplay.openFullscreen());
       DOM.$('btn-download-recording')?.addEventListener('click', () => TrainerReplay.download());
       DOM.$('btn-apply-config')?.addEventListener('click', () => TrainerReplay.toggleMasking());
+      
+      // Upload recording
+      DOM.$('btn-upload-recording')?.addEventListener('click', () => {
+        DOM.$('upload-recording')?.click();
+      });
+      DOM.$('upload-recording')?.addEventListener('change', async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        
+        try {
+          const text = await file.text();
+          const data = JSON.parse(text);
+          
+          // Get events from various formats
+          const events = data.rrweb_events || data.events || (Array.isArray(data) ? data : null);
+          if (!events?.length) {
+            Toast.error('Invalid recording format');
+            return;
+          }
+          
+          // Load into state
+          State.rrwebEvents = events;
+          
+          // Show the other controls
+          DOM.$('btn-apply-config').style.display = '';
+          DOM.$('btn-download-recording').style.display = '';
+          DOM.$('btn-fullscreen').style.display = '';
+          
+          // Init replay
+          TrainerReplay.init();
+          Toast.success(`Loaded ${events.length} events from ${file.name}`);
+          
+        } catch (err) {
+          Log.error('Failed to load recording:', err);
+          Toast.error('Failed to load: ' + err.message);
+        }
+        
+        // Reset input
+        e.target.value = '';
+      });
 
       // Modals
       DOM.$$('.modal-backdrop').forEach(el => el.addEventListener('click', () => Modal.hide(el.closest('.modal')?.id)));
@@ -409,6 +475,11 @@ window.Recap = window.Recap || {};
   window.Recap.Tabs = Tabs;
   window.Recap.Mode = Mode;
   window.Recap.App = App;
+  
+  // Alias for Library access
+  window.Recap.Panel = {
+    switchMode: (mode) => Mode.switch(mode)
+  };
 
   // Bootstrap
   document.addEventListener('DOMContentLoaded', () => App.init());

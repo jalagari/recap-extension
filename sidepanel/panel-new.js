@@ -29,11 +29,9 @@ window.Recap = window.Recap || {};
       const controls = DOM.$('replay-controls');
       if (!container) return;
 
-      // Destroy existing player
-      if (State.replayPlayer) {
-        try { State.replayPlayer.$destroy?.(); } catch(e) {}
-        State.replayPlayer = null;
-      }
+      // Destroy existing player using Player module
+      Player.destroy(container);
+      State.replayPlayer = null;
 
       if (!State.rrwebEvents.length) {
         container.innerHTML = Player.renderEmpty('No Recording Yet', 'Record a session first');
@@ -48,14 +46,20 @@ window.Recap = window.Recap || {};
         Log.debug('Applied masking to', events.length, 'events');
       }
 
-      container.innerHTML = '';
       if (controls) controls.style.display = 'flex';
 
-      // Create player using shared module
+      // Create player using shared module with fullscreen callback
+      // Get actual container dimensions
+      const rect = container.getBoundingClientRect();
+      const width = rect.width || container.clientWidth || 400;
+      const height = rect.height || container.clientHeight || 300;
+      
       State.replayPlayer = Player.create(container, events, {
-        width: 340,
-        height: 220,
-        autoPlay: false
+        width: width,
+        height: height - 50, // Leave room for controls
+        autoPlay: false,
+        showFullscreen: true,
+        onFullscreen: () => this.openFullscreen()
       });
 
       Stats.updateReplay();
@@ -74,16 +78,12 @@ window.Recap = window.Recap || {};
       if (btn) {
         if (this.maskingEnabled) {
           btn.classList.add('active');
-          btn.textContent = '✓ Config Applied';
+          btn.innerHTML = '✓ Masking Applied';
         } else {
           btn.classList.remove('active');
-          btn.textContent = 'Apply Config';
+          btn.innerHTML = '🔧 Apply Masking';
         }
       }
-    },
-
-    play() {
-      State.replayPlayer?.play?.();
     },
 
     openFullscreen() {
@@ -325,8 +325,7 @@ window.Recap = window.Recap || {};
       DOM.$('btn-save')?.addEventListener('click', () => ConfigExport.save());
       DOM.$('btn-export')?.addEventListener('click', () => ConfigExport.download());
 
-      // Replay
-      DOM.$('btn-play-replay')?.addEventListener('click', () => TrainerReplay.play());
+      // Replay controls (play/pause now built into player)
       DOM.$('btn-fullscreen')?.addEventListener('click', () => TrainerReplay.openFullscreen());
       DOM.$('btn-download-recording')?.addEventListener('click', () => TrainerReplay.download());
       DOM.$('btn-apply-config')?.addEventListener('click', () => TrainerReplay.toggleMasking());

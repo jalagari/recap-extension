@@ -23,6 +23,9 @@
       
       <!-- Mode Toggle -->
       <div class="mode-toggle">
+        <button class="mode-btn" data-mode="library" title="Manage configurations and recordings">
+          📚 Library
+        </button>
         <button class="mode-btn active" data-mode="trainer" title="Create configuration by recording">
           🎓 Trainer
         </button>
@@ -31,6 +34,57 @@
         </button>
       </div>
     </header>
+
+    <!-- ============================================ -->
+    <!-- LIBRARY MODE - Dashboard -->
+    <!-- ============================================ -->
+    <div id="mode-library" class="mode-panel">
+      <div class="library-container">
+        <!-- Library Header -->
+        <div class="lib-header">
+          <div class="lib-tabs">
+            <button id="lib-tab-configs" class="lib-tab active">
+              📋 Configurations
+              <span id="lib-config-count" class="lib-count">0/20</span>
+            </button>
+            <button id="lib-tab-recordings" class="lib-tab">
+              🎬 Recordings
+              <span id="lib-recording-count" class="lib-count">0/3</span>
+            </button>
+          </div>
+        </div>
+        
+        <!-- Configs Panel -->
+        <div id="lib-configs-panel" class="lib-panel">
+          <div class="lib-actions">
+            <input type="file" id="lib-import-config-file" accept=".json" style="display:none">
+            <button id="btn-lib-import-config" class="btn btn-sm">📁 Import Config</button>
+          </div>
+          <div id="lib-configs-list" class="lib-list">
+            <div class="lib-empty">
+              <div class="lib-empty-icon">📋</div>
+              <h3>No Configurations</h3>
+              <p>Save a configuration from the Trainer or import one</p>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Recordings Panel -->
+        <div id="lib-recordings-panel" class="lib-panel hidden">
+          <div class="lib-actions">
+            <input type="file" id="lib-import-recording-file" accept=".json" style="display:none">
+            <button id="btn-lib-import-recording" class="btn btn-sm">📁 Import Recording</button>
+          </div>
+          <div id="lib-recordings-list" class="lib-list">
+            <div class="lib-empty">
+              <div class="lib-empty-icon">🎬</div>
+              <h3>No Recordings</h3>
+              <p>Capture a recording from the Trainer or import one</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- ============================================ -->
     <!-- TRAINER MODE -->
@@ -94,6 +148,15 @@
           Ignored
           <span class="tab-badge" id="ignored-count" style="display:none;">0</span>
         </button>
+        <button class="tab" data-tab="dashboard">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="7" height="7"/>
+            <rect x="14" y="3" width="7" height="7"/>
+            <rect x="14" y="14" width="7" height="7"/>
+            <rect x="3" y="14" width="7" height="7"/>
+          </svg>
+          Storage
+        </button>
       </nav>
 
       <!-- Trainer Tab Content -->
@@ -137,14 +200,15 @@
             <div id="replay-container" class="replay-container">
               <div class="empty-state">
                 <h3>No Recording Yet</h3>
-                <p>Record a session first.</p>
+                <p>Record a session or load a recording file</p>
               </div>
             </div>
-            <div id="replay-controls" class="replay-controls" style="display:none">
-              <button id="btn-play-replay" class="btn btn-ghost">▶ Play</button>
-              <button id="btn-fullscreen" class="btn btn-ghost">⛶ Fullscreen</button>
-              <button id="btn-apply-config" class="btn btn-ghost">Apply Config</button>
-              <button id="btn-download-recording" class="btn btn-ghost">⬇ Download</button>
+            <div id="replay-controls" class="replay-controls">
+              <input type="file" id="upload-recording" accept=".json" style="display:none">
+              <button id="btn-upload-recording" class="btn">📁 Load Recording</button>
+              <button id="btn-apply-config" class="btn" style="display:none">🔧 Apply Masking</button>
+              <button id="btn-download-recording" class="btn" style="display:none">⬇ Download</button>
+              <button id="btn-fullscreen" class="btn btn-primary" style="display:none">⛶ Fullscreen</button>
             </div>
           </div>
         </div>
@@ -213,12 +277,59 @@
             </div>
           </div>
         </div>
+
+        <!-- Dashboard/Storage Tab -->
+        <div id="tab-dashboard" class="tab-panel">
+          <div class="dashboard-section">
+            <!-- Configurations Section -->
+            <div class="dashboard-card">
+              <div class="dashboard-card-header">
+                <h3>📋 Configurations <span id="dashboard-config-count" class="badge">0/10</span></h3>
+                <div class="dashboard-card-actions">
+                  <input type="file" id="import-config-file" accept=".json" style="display:none">
+                  <button id="btn-import-config" class="btn btn-sm">📁 Import</button>
+                  <button id="btn-save-to-storage" class="btn btn-sm btn-primary">💾 Save Current</button>
+                </div>
+              </div>
+              <div id="stored-configs-list" class="storage-list">
+                <div class="empty-state-small">
+                  <p>No saved configurations</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Recordings Section -->
+            <div class="dashboard-card">
+              <div class="dashboard-card-header">
+                <h3>🎬 Recordings <span id="dashboard-recording-count" class="badge">0/3</span></h3>
+                <div class="dashboard-card-actions">
+                  <input type="file" id="import-recording-file" accept=".json" style="display:none">
+                  <button id="btn-import-recording" class="btn btn-sm">📁 Import</button>
+                  <button id="btn-save-recording-to-storage" class="btn btn-sm btn-primary">💾 Save Current</button>
+                </div>
+              </div>
+              <div id="stored-recordings-list" class="storage-list">
+                <div class="empty-state-small">
+                  <p>No saved recordings (max 3)</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Quick Info -->
+            <div class="dashboard-info">
+              <p class="text-muted">
+                💡 Configurations and recordings are stored in browser IndexedDB. 
+                Export to save permanently.
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Trainer Footer -->
       <footer class="footer">
         <button id="btn-reset" class="btn btn-ghost">Reset</button>
-        <button id="btn-save" class="btn btn-primary" disabled>💾 Save Config</button>
+        <button id="btn-save-library" class="btn btn-primary">💾 Save to Library</button>
         <button id="btn-export" class="btn btn-ghost">⬇ Export</button>
       </footer>
     </div>
@@ -399,10 +510,13 @@
   
   <!-- Modular architecture - load in order -->
   <script src="modules/core.js"></script>
+  <script src="modules/storage.js"></script>
   <script src="modules/player.js"></script>
   <script src="modules/recording.js"></script>
   <script src="modules/timeline.js"></script>
   <script src="modules/config.js"></script>
+  <script src="modules/dashboard.js"></script>
+  <script src="modules/library.js"></script>
   <script src="modules/tester.js"></script>
   <script src="panel.js"></script>
 </body>

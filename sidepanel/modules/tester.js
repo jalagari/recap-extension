@@ -605,17 +605,20 @@
 
       Modal.show('session-replay-modal');
 
-      // Create player using shared module
-      // Pass container size - Player will use recorded viewport and scale down
-      const player = Player.create(container, session.events, {
-        width: container.clientWidth || 900,
-        height: container.clientHeight || 600,
-        autoPlay: true
-      });
+      // Give modal time to render before measuring container
+      setTimeout(() => {
+        // Create player using shared module with proper dimensions
+        const player = Player.create(container, session.events, {
+          width: container.clientWidth || 800,
+          height: container.clientHeight || 500,
+          autoPlay: true,
+          showFullscreen: false // Already in modal
+        });
 
-      if (!player) {
-        console.error('[Recap Tester] Player creation failed');
-      }
+        if (!player) {
+          console.error('[Recap Tester] Player creation failed');
+        }
+      }, 100);
     },
 
     downloadSession(sessionId) {

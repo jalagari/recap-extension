@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Recap Player Test</title>
+  <link rel="stylesheet" href="lib/rrweb-player.min.css">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1a1a1a;
+      color: #fff;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .container { max-width: 1200px; margin: 0 auto; }
+    h1 { margin-bottom: 20px; font-size: 24px; }
+    
+    .controls {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    .btn-primary {
+      background: #ef4444;
+      color: white;
+    }
+    .btn-primary:hover {
+      background: #dc2626;
+    }
+    .btn-secondary {
+      background: #333;
+      color: #fff;
+      border: 1px solid #444;
+    }
+    .btn-secondary:hover {
+      background: #444;
+    }
+    
+    #file-input {
+      display: none;
+    }
+    
+    .status {
+      padding: 8px 16px;
+      background: #252525;
+      border-radius: 6px;
+      font-size: 13px;
+      color: #888;
+    }
+    .status.success { color: #22c55e; }
+    .status.error { color: #ef4444; }
+    
+    .player-container {
+      background: #0d0d0d;
+      border-radius: 12px;
+      min-height: 500px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    
+    .player-viewport {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      min-height: 450px;
+    }
+    
+    .player-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      background: linear-gradient(180deg, #2a2a2a, #1f1f1f);
+      border-top: 1px solid #333;
+    }
+    
+    .play-btn {
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #ef4444;
+      border: none;
+      border-radius: 50%;
+      color: white;
+      cursor: pointer;
+    }
+    .play-btn:hover {
+      background: #dc2626;
+    }
+    
+    .progress-bar {
+      flex: 1;
+      height: 6px;
+      background: #444;
+      border-radius: 3px;
+      cursor: pointer;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #ef4444, #f87171);
+      width: 0%;
+      transition: width 0.1s linear;
+    }
+    
+    .time-display {
+      font-family: 'SF Mono', monospace;
+      font-size: 12px;
+      color: #888;
+      min-width: 100px;
+      text-align: right;
+    }
+    
+    .info-panel {
+      margin-top: 20px;
+      padding: 16px;
+      background: #252525;
+      border-radius: 8px;
+    }
+    .info-panel h3 {
+      font-size: 14px;
+      margin-bottom: 12px;
+      color: #888;
+    }
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 12px;
+    }
+    .info-item {
+      padding: 8px 12px;
+      background: #1a1a1a;
+      border-radius: 6px;
+    }
+    .info-label {
+      font-size: 11px;
+      color: #666;
+      text-transform: uppercase;
+    }
+    .info-value {
+      font-size: 14px;
+      font-weight: 600;
+      color: #fff;
+      margin-top: 4px;
+    }
+    
+    .empty-state {
+      text-align: center;
+      color: #666;
+      padding: 60px;
+    }
+    .empty-state svg {
+      opacity: 0.3;
+      margin-bottom: 16px;
+    }
+    
+    /* rrweb player overrides */
+    .rr-player {
+      background: transparent !important;
+    }
+    .rr-player__frame {
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    }
+    .rr-controller {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎬 Recap Player Test</h1>
+    
+    <div class="controls">
+      <input type="file" id="file-input" accept=".json">
+      <button class="btn btn-primary" onclick="document.getElementById('file-input').click()">
+        📁 Load Recording
+      </button>
+      <button class="btn btn-secondary" onclick="loadSample('recap.json')">
+        Load Sample: recap.json
+      </button>
+      <button class="btn btn-secondary" onclick="loadSample('recording.json')">
+        Load Sample: recording.json
+      </button>
+      <span id="status" class="status">No recording loaded</span>
+    </div>
+    
+    <div class="player-container">
+      <div id="player-viewport" class="player-viewport">
+        <div class="empty-state">
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+            <polygon points="5 3 19 12 5 21 5 3"/>
+          </svg>
+          <p>Load a recording to begin</p>
+        </div>
+      </div>
+      <div id="player-controls" class="player-controls" style="display: none;">
+        <button id="play-btn" class="play-btn">
+          <svg id="icon-play" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <polygon points="5 3 19 12 5 21 5 3"/>
+          </svg>
+          <svg id="icon-pause" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="display:none">
+            <rect x="6" y="4" width="4" height="16"/>
+            <rect x="14" y="4" width="4" height="16"/>
+          </svg>
+        </button>
+        <div id="progress-bar" class="progress-bar">
+          <div id="progress-fill" class="progress-fill"></div>
+        </div>
+        <span id="time-display" class="time-display">0:00 / 0:00</span>
+      </div>
+    </div>
+    
+    <div id="info-panel" class="info-panel" style="display: none;">
+      <h3>Recording Info</h3>
+      <div class="info-grid">
+        <div class="info-item">
+          <div class="info-label">Events</div>
+          <div id="info-events" class="info-value">-</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">Duration</div>
+          <div id="info-duration" class="info-value">-</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">Viewport</div>
+          <div id="info-viewport" class="info-value">-</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">Form</div>
+          <div id="info-form" class="info-value">-</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="lib/rrweb-player.min.js"></script>
+  <script>
+    let player = null;
+    let replayer = null;
+    let isPlaying = false;
+    let totalDuration = 0;
+    
+    // DOM elements
+    const viewport = document.getElementById('player-viewport');
+    const controls = document.getElementById('player-controls');
+    const playBtn = document.getElementById('play-btn');
+    const iconPlay = document.getElementById('icon-play');
+    const iconPause = document.getElementById('icon-pause');
+    const progressBar = document.getElementById('progress-bar');
+    const progressFill = document.getElementById('progress-fill');
+    const timeDisplay = document.getElementById('time-display');
+    const statusEl = document.getElementById('status');
+    const infoPanel = document.getElementById('info-panel');
+    
+    // Format time
+    function formatTime(ms) {
+      const secs = Math.floor((ms || 0) / 1000);
+      const mins = Math.floor(secs / 60);
+      const remainSecs = secs % 60;
+      return `${mins}:${remainSecs.toString().padStart(2, '0')}`;
+    }
+    
+    // Update status
+    function setStatus(text, type = '') {
+      statusEl.textContent = text;
+      statusEl.className = 'status ' + type;
+    }
+    
+    // Load sample file
+    async function loadSample(filename) {
+      setStatus('Loading ' + filename + '...', '');
+      try {
+        const response = await fetch('./sample/' + filename);
+        if (!response.ok) throw new Error('File not found');
+        const data = await response.json();
+        loadRecording(data, filename);
+      } catch (e) {
+        setStatus('Error: ' + e.message, 'error');
+      }
+    }
+    
+    // File input handler
+    document.getElementById('file-input').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      setStatus('Loading ' + file.name + '...', '');
+      try {
+        const text = await file.text();
+        const data = JSON.parse(text);
+        loadRecording(data, file.name);
+      } catch (e) {
+        setStatus('Error: ' + e.message, 'error');
+      }
+    });
+    
+    // Load recording data
+    function loadRecording(data, filename) {
+      // Get events - support both formats
+      let events = data.rrweb_events || data.events || data;
+      if (!Array.isArray(events)) {
+        setStatus('Invalid recording format', 'error');
+        return;
+      }
+      
+      // Validate events
+      const metaEvent = events.find(e => e.type === 4);
+      const fullSnapshot = events.find(e => e.type === 2);
+      
+      if (!metaEvent || !fullSnapshot) {
+        setStatus('Invalid recording: missing Meta or FullSnapshot', 'error');
+        return;
+      }
+      
+      // Get dimensions and duration
+      const width = metaEvent.data?.width || 1920;
+      const height = metaEvent.data?.height || 1080;
+      totalDuration = events.length > 1 
+        ? events[events.length - 1].timestamp - events[0].timestamp 
+        : 0;
+      
+      // Update info panel
+      document.getElementById('info-events').textContent = events.length;
+      document.getElementById('info-duration').textContent = formatTime(totalDuration);
+      document.getElementById('info-viewport').textContent = `${width} × ${height}`;
+      document.getElementById('info-form').textContent = data.form_name || data.metadata?.form_name || filename;
+      infoPanel.style.display = 'block';
+      
+      // Cleanup existing player
+      if (player) {
+        try { player.$destroy(); } catch (e) {}
+        player = null;
+        replayer = null;
+      }
+      
+      // Clear viewport
+      viewport.innerHTML = '';
+      
+      // Calculate scale
+      const containerWidth = viewport.clientWidth - 32;
+      const containerHeight = viewport.clientHeight - 32;
+      const scaleX = containerWidth / width;
+      const scaleY = containerHeight / height;
+      const scale = Math.min(scaleX, scaleY, 1);
+      
+      console.log('Creating player:', { events: events.length, viewport: `${width}x${height}`, scale: scale.toFixed(2) });
+      
+      // Create player
+      try {
+        player = new rrwebPlayer({
+          target: viewport,
+          props: {
+            events: events,
+            width: width,
+            height: height,
+            autoPlay: false,
+            showController: false,
+            skipInactive: true
+          }
+        });
+        
+        // Get replayer
+        replayer = player.getReplayer?.();
+        
+        // Apply scaling
+        const playerEl = viewport.querySelector('.rr-player');
+        if (playerEl && scale < 1) {
+          playerEl.style.transform = `scale(${scale})`;
+          playerEl.style.transformOrigin = 'top center';
+        }
+        
+        // Show controls
+        controls.style.display = 'flex';
+        timeDisplay.textContent = `0:00 / ${formatTime(totalDuration)}`;
+        progressFill.style.width = '0%';
+        isPlaying = false;
+        updatePlayIcon();
+        
+        setStatus(`Loaded ${events.length} events (${formatTime(totalDuration)})`, 'success');
+        
+      } catch (e) {
+        console.error('Player creation failed:', e);
+        setStatus('Error creating player: ' + e.message, 'error');
+      }
+    }
+    
+    // Update play/pause icon
+    function updatePlayIcon() {
+      iconPlay.style.display = isPlaying ? 'none' : 'block';
+      iconPause.style.display = isPlaying ? 'block' : 'none';
+    }
+    
+    // Play/Pause handler
+    playBtn.addEventListener('click', () => {
+      if (!player) return;
+      
+      try {
+        if (isPlaying) {
+          if (player.pause) player.pause();
+          else if (replayer?.pause) replayer.pause();
+        } else {
+          if (player.play) player.play();
+          else if (replayer?.play) replayer.play();
+        }
+        isPlaying = !isPlaying;
+        updatePlayIcon();
+      } catch (e) {
+        console.error('Play/Pause error:', e);
+      }
+    });
+    
+    // Progress bar click
+    progressBar.addEventListener('click', (e) => {
+      if (!replayer || !totalDuration) return;
+      
+      const rect = progressBar.getBoundingClientRect();
+      const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      const seekTime = pct * totalDuration;
+      
+      try {
+        replayer.pause(seekTime);
+        isPlaying = false;
+        updatePlayIcon();
+        updateProgress(seekTime);
+      } catch (e) {
+        console.error('Seek error:', e);
+      }
+    });
+    
+    // Update progress display
+    function updateProgress(time) {
+      const pct = totalDuration > 0 ? (time / totalDuration) * 100 : 0;
+      progressFill.style.width = `${pct}%`;
+      timeDisplay.textContent = `${formatTime(time)} / ${formatTime(totalDuration)}`;
+    }
+    
+    // Progress update loop
+    setInterval(() => {
+      if (isPlaying && replayer?.getCurrentTime) {
+        try {
+          const time = replayer.getCurrentTime();
+          updateProgress(time);
+          if (time >= totalDuration) {
+            isPlaying = false;
+            updatePlayIcon();
+          }
+        } catch (e) {}
+      }
+    }, 100);
+  </script>
+</body>
+</html>
+

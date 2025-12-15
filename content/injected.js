@@ -469,7 +469,7 @@
         if (style.display === 'none') {
           return { isVisible: false, reason: 'display-none' };
         }
-        if (style.visibility === 'hidden') {
+        if (style.visibility === 'hidden' || style.visibility === 'collapse') {
           return { isVisible: false, reason: 'visibility-hidden' };
         }
         if (parseFloat(style.opacity) === 0) {
@@ -480,6 +480,11 @@
         const rect = node.getBoundingClientRect();
         if (rect.width === 0 && rect.height === 0) {
           return { isVisible: false, reason: 'zero-size' };
+        }
+        
+        // Check for very small elements (less than 2px in either dimension)
+        if (rect.width < 2 || rect.height < 2) {
+          return { isVisible: false, reason: 'tiny-size' };
         }
         
         // Check if hidden input type
@@ -499,13 +504,69 @@
           return { isVisible: false, reason: 'aria-hidden' };
         }
         
-        // Check parent visibility (up to 5 levels)
+        // Check for CSS clip/clip-path that hides element
+        if (style.clip === 'rect(0px, 0px, 0px, 0px)' || 
+            style.clipPath === 'inset(100%)' ||
+            style.clipPath === 'circle(0)' ||
+            style.clipPath === 'polygon(0 0, 0 0, 0 0)') {
+          return { isVisible: false, reason: 'clipped' };
+        }
+        
+        // Check for transform that hides element
+        if (style.transform) {
+          const transform = style.transform.toLowerCase();
+          if (transform.includes('scale(0') || 
+              transform.includes('scalex(0') || 
+              transform.includes('scaley(0') ||
+              transform.includes('translate') && (
+                transform.includes('-9999') || 
+                transform.includes('-10000')
+              )) {
+            return { isVisible: false, reason: 'transformed-hidden' };
+          }
+        }
+        
+        // Check for negative text-indent (common screen-reader-only technique)
+        const textIndent = parseFloat(style.textIndent);
+        if (textIndent < -999) {
+          return { isVisible: false, reason: 'text-indent-hidden' };
+        }
+        
+        // Check for overflow hidden with tiny content area
+        if (style.overflow === 'hidden') {
+          const contentWidth = node.scrollWidth;
+          const contentHeight = node.scrollHeight;
+          if (contentWidth > rect.width * 2 || contentHeight > rect.height * 2) {
+            // Content is significantly larger than visible area - might be hidden
+            // But only flag if the visible area is very small
+            if (rect.width < 10 || rect.height < 10) {
+              return { isVisible: false, reason: 'overflow-clipped' };
+            }
+          }
+        }
+        
+        // Check parent visibility (up to 10 levels for deeply nested elements)
         let parent = node.parentElement;
         let depth = 0;
-        while (parent && depth < 5) {
+        while (parent && depth < 10) {
           const parentStyle = window.getComputedStyle(parent);
           if (parentStyle.display === 'none' || parentStyle.visibility === 'hidden') {
             return { isVisible: false, reason: 'parent-hidden' };
+          }
+          // Check parent opacity
+          if (parseFloat(parentStyle.opacity) === 0) {
+            return { isVisible: false, reason: 'parent-opacity-zero' };
+          }
+          // Check if element is clipped by parent overflow
+          if (parentStyle.overflow === 'hidden' || parentStyle.overflow === 'clip') {
+            const parentRect = parent.getBoundingClientRect();
+            // Check if element is completely outside parent's visible area
+            if (rect.right < parentRect.left || 
+                rect.left > parentRect.right ||
+                rect.bottom < parentRect.top || 
+                rect.top > parentRect.bottom) {
+              return { isVisible: false, reason: 'overflow-hidden-by-parent' };
+            }
           }
           parent = parent.parentElement;
           depth++;

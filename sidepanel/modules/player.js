@@ -1,7 +1,8 @@
 /**
  * Recap - Player Module
  * Shared rrweb-player wrapper for both Trainer and Tester modes
- * @version 1.0.0
+ * Minimal UI with clean replay experience
+ * @version 2.0.0
  */
 
 'use strict';
@@ -14,6 +15,9 @@
   // ============================================================================
 
   const Player = {
+    // Track active players for cleanup
+    instances: new Map(),
+    
     /**
      * Create a player instance in a container
      * @param {HTMLElement|string} container - Container element or ID
@@ -28,6 +32,9 @@
         Log.error('Player container not found');
         return null;
       }
+
+      // Cleanup any existing player in this container
+      this.destroy(containerEl);
 
       // Validate events
       const validation = this.validateEvents(events);
@@ -45,7 +52,8 @@
         return null;
       }
 
-      // Debug: Log event structure
+      // Get event stats
+      const stats = this.getStats(validation.events);
       const fullSnapshot = validation.events.find(e => e.type === 2);
       const metaEvent = validation.events.find(e => e.type === 4);
       
@@ -53,162 +61,82 @@
       const recordedWidth = metaEvent?.data?.width || 1920;
       const recordedHeight = metaEvent?.data?.height || 1080;
       
-      console.log('[Recap Player] Recorded viewport:', recordedWidth, 'x', recordedHeight);
-      
-      // Count nodes and check for corruption
+      // Count nodes and fix corruption
       const nodeStats = { count: 0, nullNodes: 0, noIdNodes: 0 };
       this._countNodes(fullSnapshot?.data?.node, nodeStats);
       
-      // Check for stylesheet links in the snapshot
-      const stylesheetCount = this._countStylesheets(fullSnapshot?.data?.node);
-      
-      console.log('[Recap Player] Creating player:', {
-        total: validation.events.length,
-        nodeCount: nodeStats.count,
-        recordedViewport: `${recordedWidth}x${recordedHeight}`,
-        stylesheetCount: stylesheetCount,
-        hasNode: !!fullSnapshot?.data?.node
-      });
-
-      // Warn if DOM tree seems empty
-      if (nodeStats.count < 10) {
-        console.warn('[Recap Player] WARNING: FullSnapshot has very few nodes:', nodeStats.count);
-      }
-      
-      // Warn about external stylesheets
-      if (stylesheetCount > 0) {
-        console.warn('[Recap Player] NOTE: Recording has', stylesheetCount, 'external stylesheets that may not load in replay');
-      }
-      
-      // FIX corrupted nodes before replay
       if (nodeStats.nullNodes > 0) {
-        console.warn('[Recap Player] Fixing', nodeStats.nullNodes, 'null nodes in tree...');
         this._validateAndFixNodeTree(fullSnapshot.data.node);
       }
       
-      // Determine player dimensions based on container size
+      // Calculate dimensions - maximize space usage
       const containerWidth = options.width || containerEl.clientWidth || 800;
       const containerHeight = options.height || containerEl.clientHeight || 500;
       
-      // For small containers (preview/thumbnail), use container dimensions directly
-      // For large containers (fullscreen/modal), use recorded dimensions with scaling
-      const isSmallContainer = containerWidth < 400 || containerHeight < 300;
-      
+      // Calculate scale to fit container while maintaining aspect ratio
+      const aspectRatio = recordedWidth / recordedHeight;
       let playerWidth, playerHeight, scale;
       
-      if (isSmallContainer) {
-        // Small container: fit player directly to container (simpler approach)
-        playerWidth = containerWidth;
-        playerHeight = containerHeight - 50; // Leave room for controller
-        scale = 1; // No scaling needed
-        console.log('[Recap Player] Small container mode:', playerWidth, 'x', playerHeight);
-      } else {
-        // Large container: use recorded dimensions with scaling
-        const scaleX = containerWidth / recordedWidth;
-        const scaleY = containerHeight / recordedHeight;
-        scale = Math.min(scaleX, scaleY, 1); // Don't scale up, only down
-        playerWidth = recordedWidth;
-        playerHeight = recordedHeight;
-        console.log('[Recap Player] Large container mode, scale:', scale.toFixed(2));
-      }
+      // Calculate the best fit
+      const scaleX = containerWidth / recordedWidth;
+      const scaleY = containerHeight / recordedHeight;
+      scale = Math.min(scaleX, scaleY, 1); // Don't scale up
+      
+      playerWidth = recordedWidth;
+      playerHeight = recordedHeight;
 
       try {
-        // Apply container scaling style for proper viewport handling
-        containerEl.style.overflow = 'hidden';
-        containerEl.style.position = 'relative';
+        // Create wrapper for player and controls
+        const wrapper = document.createElement('div');
+        wrapper.className = 'recap-player-wrapper';
+        containerEl.appendChild(wrapper);
         
-        console.log('[Recap Player] Using dimensions:', playerWidth, 'x', playerHeight, 'scale:', scale.toFixed(2));
+        // Create player container
+        const playerContainer = document.createElement('div');
+        playerContainer.className = 'recap-player-viewport';
+        wrapper.appendChild(playerContainer);
         
-        // Create player with RECORDED viewport size (critical for CSS media queries)
+        // Create player with NO built-in controller
         const player = new rrwebPlayer({
-          target: containerEl,
+          target: playerContainer,
           props: {
             events: validation.events,
-            // USE RECORDED DIMENSIONS - this prevents responsive CSS from triggering
             width: playerWidth,
             height: playerHeight,
             autoPlay: options.autoPlay ?? false,
-            showController: options.showController ?? true,
-            speedOption: options.speedOption || [1, 2, 4, 8],
-            // Don't use live mode - we have complete recordings
+            showController: false, // Hide built-in controls
+            skipInactive: true,
             liveMode: false,
-            // Skip missing nodes instead of throwing errors
-            showWarning: true,
+            showWarning: false,
             showDebug: false,
-            // CRITICAL: Inject fallback CSS so content is visible even when external CSS fails
-            insertStyleRules: [
-              // Reset and base visibility
-              '* { box-sizing: border-box; }',
-              'html, body { margin: 0; padding: 0; min-height: 100%; background: #f5f5f5 !important; color: #333 !important; }',
-              // Make all elements visible with basic styling
-              'div, section, article, main, header, footer, nav, aside { display: block; }',
-              'form { display: block; padding: 16px; background: #fff; }',
-              // Form elements - ensure they're visible
-              'input, select, textarea, button { display: inline-block; padding: 8px 12px; margin: 4px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; min-width: 100px; background: #fff; color: #333; }',
-              'input[type="text"], input[type="email"], input[type="tel"], input[type="number"], input[type="password"] { width: 200px; }',
-              'button, input[type="submit"], input[type="button"] { background: #4a90d9; color: white; cursor: pointer; padding: 10px 20px; border: none; }',
-              'label { display: inline-block; margin: 4px 8px 4px 0; font-weight: 500; color: #333; }',
-              // Text visibility
-              'h1, h2, h3, h4, h5, h6, p, span, label, a, li, td, th { color: #333 !important; }',
-              'a { color: #0066cc !important; text-decoration: underline; }',
-              // Images
-              'img { max-width: 100%; height: auto; border: 1px dashed #ccc; min-height: 20px; min-width: 20px; background: #f0f0f0; }',
-              // Tables
-              'table { border-collapse: collapse; width: 100%; background: #fff; }',
-              'td, th { border: 1px solid #ddd; padding: 8px; }',
-              // Lists
-              'ul, ol { padding-left: 20px; }',
-              // Generic fallback font
-              'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 14px; line-height: 1.5; }'
-            ]
+            insertStyleRules: this._getInsertStyleRules()
           }
         });
-
-        console.log('[Recap Player] Player created successfully');
         
-        // Apply CSS transform to scale down the player to fit container
-        const playerWrapper = containerEl.querySelector('.rr-player');
-        
-        if (isSmallContainer) {
-          // Small container: ensure player fits without scaling
-          if (playerWrapper) {
-            playerWrapper.style.transform = 'none';
-            playerWrapper.style.margin = '0';
-          }
-          containerEl.style.height = 'auto';
-          containerEl.style.minHeight = `${containerHeight}px`;
-        } else if (playerWrapper && scale < 1) {
-          // Large container with scaling
-          playerWrapper.style.transform = `scale(${scale})`;
-          playerWrapper.style.transformOrigin = 'top center';
-          
-          // Calculate scaled dimensions
+        // Apply scaling and center the player
+        const playerEl = playerContainer.querySelector('.rr-player');
+        if (playerEl) {
           const scaledWidth = playerWidth * scale;
-          const scaledHeight = (playerHeight + 80) * scale; // +80 for controller
+          const scaledHeight = playerHeight * scale;
           
-          // Set container height to match scaled player
-          containerEl.style.height = `${scaledHeight + 20}px`;
-          containerEl.style.minHeight = 'auto';
+          if (scale < 1) {
+            playerEl.style.transform = `scale(${scale})`;
+            playerEl.style.transformOrigin = 'top left';
+          }
           
-          // Center the scaled player
-          playerWrapper.style.margin = '0 auto';
-          
-          console.log('[Recap Player] Scaled to:', scaledWidth.toFixed(0), 'x', scaledHeight.toFixed(0));
-        } else {
-          // No scaling needed
-          containerEl.style.height = 'auto';
-          containerEl.style.minHeight = 'auto';
+          // Set viewport container dimensions and center content
+          playerContainer.style.width = `${scaledWidth}px`;
+          playerContainer.style.height = `${scaledHeight}px`;
+          playerContainer.style.overflow = 'hidden';
+          playerContainer.style.margin = '0 auto'; // Center horizontally
         }
         
-        // Listen for errors from the replayer
-        if (player.getReplayer) {
-          const replayer = player.getReplayer();
-          if (replayer && replayer.on) {
-            replayer.on('warn', (warn) => {
-              console.warn('[Recap Player] Replayer warning:', warn);
-            });
-          }
-        }
+        // Add custom minimal controls
+        const controls = this._createControls(player, stats, options);
+        wrapper.appendChild(controls);
+        
+        // Store instance for cleanup
+        this.instances.set(containerEl, { player, wrapper });
         
         return player;
 
@@ -217,6 +145,215 @@
         containerEl.innerHTML = this.renderError(e.message);
         return null;
       }
+    },
+    
+    /**
+     * Create minimal custom controls
+     * @private
+     */
+    _createControls(player, stats, options = {}) {
+      const controls = document.createElement('div');
+      controls.className = 'recap-player-controls';
+      
+      // rrwebPlayer exposes methods directly on the player object
+      // getReplayer() returns the internal replayer for advanced operations
+      let isPlaying = options.autoPlay ?? false;
+      let currentTime = 0;
+      const totalTime = stats.duration;
+      
+      controls.innerHTML = `
+        <button class="rpc-play-btn" title="Play/Pause">
+          <svg class="rpc-icon-play" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <polygon points="5 3 19 12 5 21 5 3"/>
+          </svg>
+          <svg class="rpc-icon-pause" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="display:none">
+            <rect x="6" y="4" width="4" height="16"/>
+            <rect x="14" y="4" width="4" height="16"/>
+          </svg>
+        </button>
+        <div class="rpc-progress-wrap">
+          <div class="rpc-progress-bar">
+            <div class="rpc-progress-fill"></div>
+          </div>
+        </div>
+        <span class="rpc-time">${this._formatTime(currentTime)} / ${this._formatTime(totalTime)}</span>
+        ${options.showFullscreen !== false ? `
+          <button class="rpc-fullscreen-btn" title="Fullscreen">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+            </svg>
+          </button>
+        ` : ''}
+      `;
+      
+      const playBtn = controls.querySelector('.rpc-play-btn');
+      const iconPlay = controls.querySelector('.rpc-icon-play');
+      const iconPause = controls.querySelector('.rpc-icon-pause');
+      const progressBar = controls.querySelector('.rpc-progress-bar');
+      const progressFill = controls.querySelector('.rpc-progress-fill');
+      const timeDisplay = controls.querySelector('.rpc-time');
+      const fullscreenBtn = controls.querySelector('.rpc-fullscreen-btn');
+      
+      const updatePlayState = (playing) => {
+        isPlaying = playing;
+        iconPlay.style.display = playing ? 'none' : 'block';
+        iconPause.style.display = playing ? 'block' : 'none';
+      };
+      
+      const updateProgress = (time) => {
+        currentTime = time;
+        const pct = totalTime > 0 ? (time / totalTime) * 100 : 0;
+        progressFill.style.width = `${pct}%`;
+        timeDisplay.textContent = `${this._formatTime(time)} / ${this._formatTime(totalTime)}`;
+      };
+      
+      // Get the internal replayer for seeking and time tracking
+      const replayer = player.getReplayer?.();
+      
+      // Store player reference for controls
+      controls._player = player;
+      controls._replayer = replayer;
+      
+      // Play/Pause - rrwebPlayer exposes play/pause directly
+      playBtn.addEventListener('click', () => {
+        try {
+          // rrwebPlayer methods: play(), pause(), toggle()
+          if (isPlaying) {
+            player.pause();
+          } else {
+            player.play();
+          }
+          isPlaying = !isPlaying;
+          updatePlayState(isPlaying);
+        } catch (e) {
+          console.error('[Recap Player] Play/Pause error:', e);
+          // Fallback to replayer
+          try {
+            if (replayer) {
+              if (isPlaying) replayer.pause();
+              else replayer.play();
+              isPlaying = !isPlaying;
+              updatePlayState(isPlaying);
+            }
+          } catch (e2) {}
+        }
+      });
+      
+      // Progress bar click to seek
+      progressBar.addEventListener('click', (e) => {
+        const rect = progressBar.getBoundingClientRect();
+        const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+        const seekTime = pct * totalTime;
+        try {
+          // Seek using replayer.pause(time) or player.goto(time, false)
+          if (replayer?.pause) {
+            replayer.pause(seekTime);
+          }
+          updateProgress(seekTime);
+          isPlaying = false;
+          updatePlayState(false);
+        } catch (e) {
+          console.error('[Recap Player] Seek error:', e);
+        }
+      });
+      
+      // Fullscreen
+      if (fullscreenBtn && options.onFullscreen) {
+        fullscreenBtn.addEventListener('click', options.onFullscreen);
+      } else if (fullscreenBtn) {
+        fullscreenBtn.style.display = 'none';
+      }
+      
+      // Listen for replayer events if available
+      if (replayer?.on) {
+        try {
+          replayer.on('finish', () => {
+            isPlaying = false;
+            updatePlayState(false);
+            updateProgress(totalTime);
+          });
+        } catch (e) {}
+      }
+      
+      // Update progress periodically when playing
+      const progressInterval = setInterval(() => {
+        if (isPlaying) {
+          try {
+            const time = replayer?.getCurrentTime?.() || 0;
+            updateProgress(time);
+            // Check if finished
+            if (time >= totalTime) {
+              updatePlayState(false);
+            }
+          } catch (e) {}
+        }
+      }, 100);
+      
+      // Store interval for cleanup
+      controls._progressInterval = progressInterval;
+      
+      if (options.autoPlay) {
+        updatePlayState(true);
+      }
+      
+      return controls;
+    },
+    
+    /**
+     * Format time in mm:ss
+     * @private
+     */
+    _formatTime(ms) {
+      const secs = Math.floor((ms || 0) / 1000);
+      const mins = Math.floor(secs / 60);
+      const remainSecs = secs % 60;
+      return `${mins}:${remainSecs.toString().padStart(2, '0')}`;
+    },
+    
+    /**
+     * Get CSS rules to inject into replay
+     * @private
+     */
+    _getInsertStyleRules() {
+      return [
+        '* { box-sizing: border-box; }',
+        'html, body { margin: 0; padding: 0; min-height: 100%; background: #f5f5f5 !important; color: #333 !important; }',
+        'div, section, article, main, header, footer, nav, aside { display: block; }',
+        'form { display: block; padding: 16px; background: #fff; }',
+        'input, select, textarea, button { display: inline-block; padding: 8px 12px; margin: 4px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; min-width: 100px; background: #fff; color: #333; }',
+        'button, input[type="submit"], input[type="button"] { background: #4a90d9; color: white; cursor: pointer; padding: 10px 20px; border: none; }',
+        'label { display: inline-block; margin: 4px 8px 4px 0; font-weight: 500; color: #333; }',
+        'h1, h2, h3, h4, h5, h6, p, span, label, a, li, td, th { color: #333 !important; }',
+        'img { max-width: 100%; height: auto; }',
+        'table { border-collapse: collapse; width: 100%; background: #fff; }',
+        'td, th { border: 1px solid #ddd; padding: 8px; }',
+        'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 14px; line-height: 1.5; }'
+      ];
+    },
+    
+    /**
+     * Destroy player instance
+     */
+    destroy(container) {
+      const containerEl = typeof container === 'string' ? DOM.$(container) : container;
+      if (!containerEl) return;
+      
+      const instance = this.instances.get(containerEl);
+      if (instance) {
+        // Clear progress interval
+        if (instance.wrapper) {
+          const controls = instance.wrapper.querySelector('.recap-player-controls');
+          if (controls?._progressInterval) {
+            clearInterval(controls._progressInterval);
+          }
+        }
+        // Destroy player
+        try {
+          instance.player?.$destroy?.();
+        } catch (e) {}
+        this.instances.delete(containerEl);
+      }
+      containerEl.innerHTML = '';
     },
     
     /**
@@ -543,19 +680,31 @@
       }
 
       const container = DOM.$(containerId);
-      if (!container) return null;
+      if (!container) {
+        Log.error('Fullscreen container not found:', containerId);
+        return null;
+      }
 
-      container.innerHTML = '';
+      this.destroy(container);
       Modal.show(modalId);
 
-      return this.create(container, events, {
-        width: options.width || 900,
-        height: options.height || 550,
-        autoPlay: true,
-        showController: true,
-        speedOption: [0.5, 1, 2, 4, 8],
-        ...options
-      });
+      // Delay creation to allow modal to render and get proper dimensions
+      return setTimeout(() => {
+        // Get actual container dimensions after modal is visible
+        const rect = container.getBoundingClientRect();
+        const width = rect.width || container.clientWidth || 850;
+        const height = rect.height || container.clientHeight || 500;
+        
+        Log.debug('Fullscreen container dimensions:', width, 'x', height);
+        
+        this.create(container, events, {
+          width: width,
+          height: height,
+          autoPlay: true,
+          showFullscreen: false, // Already fullscreen
+          ...options
+        });
+      }, 150);
     },
 
     /**

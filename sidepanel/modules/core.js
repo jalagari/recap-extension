@@ -107,6 +107,10 @@ const State = {
   testerConfig: null,
   testerRecording: false,
   testerSessions: [],
+  
+  // Library state
+  libraryConfigs: [],
+  libraryRecordings: [],
 
   // Config
   config: {

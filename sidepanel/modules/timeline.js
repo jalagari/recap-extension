@@ -63,10 +63,17 @@
         'visibility-hidden': 'visibility: hidden',
         'opacity-zero': 'opacity: 0',
         'zero-size': 'Zero dimensions',
+        'tiny-size': 'Very small (<2px)',
         'hidden-input': 'type="hidden"',
         'off-screen': 'Off-screen',
         'aria-hidden': 'aria-hidden',
+        'clipped': 'CSS clip/clip-path',
+        'transformed-hidden': 'CSS transform hidden',
+        'text-indent-hidden': 'text-indent hidden',
+        'overflow-clipped': 'overflow: hidden',
         'parent-hidden': 'Parent hidden',
+        'parent-opacity-zero': 'Parent opacity: 0',
+        'overflow-hidden-by-parent': 'Clipped by parent',
         'no-node': 'Node not found',
         'check-failed': 'Check failed'
       };
@@ -249,7 +256,14 @@
     },
 
     getTagLabel(tag) {
-      const labels = { masked: '🔒 Masked', step: '📍 Step', success: '✅ Success', scrubbed: '🔐 Scrubbed' };
+      // Labels without emojis - CSS adds icons via ::before
+      const labels = { 
+        masked: 'Masked', 
+        step: 'Step', 
+        success: 'Success', 
+        scrubbed: 'Scrubbed',
+        ignored: 'Hidden'
+      };
       return labels[tag] || tag;
     },
 
@@ -260,46 +274,90 @@
       const stepName = State.config.journey.steps.find(s => s.selector === sel)?.name || 'Step';
       const isSuccess = event.data?.selector === State.config.journey.successSelector;
 
+      // Format network URL nicely
+      const formatUrl = (url) => {
+        if (!url) return '';
+        try {
+          const u = new URL(url, window.location.origin);
+          return u.pathname + (u.search ? '?' + u.search.slice(1, 20) + '...' : '');
+        } catch {
+          return DOM.truncate(url, 40);
+        }
+      };
+
+      // Get clean field name from selector
+      const getFieldName = (selector, label) => {
+        if (label) return label;
+        if (!selector) return 'Unknown field';
+        // Extract readable name from selector
+        if (selector.startsWith('#')) {
+          const id = selector.slice(1);
+          // Try to extract meaningful part from long AEM IDs
+          const parts = id.split('-');
+          const meaningful = parts.find(p => 
+            !p.match(/^\d+$/) && 
+            !p.match(/^(panel|guide|container|rootPanel|widget)$/i) &&
+            p.length > 2
+          );
+          return meaningful || parts[parts.length - 1] || id;
+        }
+        if (selector.startsWith('[name=')) {
+          const match = selector.match(/\[name="?([^"\]]+)"?\]/);
+          return match ? match[1] : selector;
+        }
+        return selector;
+      };
+
       const displays = {
         input: {
           icon: '⌨️',
-          title: event.data?.label || sel,
-          detail: event.data?.value ? `"${DOM.truncate(event.data.value, 30)}"` : '',
+          title: getFieldName(sel, event.data?.label),
+          detail: event.data?.value ? DOM.truncate(event.data.value, 35) : '',
           actions: sel ? [{ action: 'mask', label: isMasked ? '✓ Masked' : 'Mask', applied: isMasked }] : []
         },
         click: {
-          icon: '🖱️',
-          title: event.data?.text ? `"${DOM.truncate(event.data.text, 25)}"` : sel,
-          detail: isStep ? `📍 Step: ${stepName}` : '',
+          icon: '👆',
+          title: event.data?.text ? DOM.truncate(event.data.text, 30) : getFieldName(sel, null),
+          detail: isStep ? `Step: ${stepName}` : (event.data?.tagName || ''),
           actions: [
-            { action: 'step', label: isStep ? '✓ Step' : 'Mark Step', applied: isStep },
-            { action: 'success', label: isSuccess ? '✓ Success' : 'Success', applied: isSuccess }
+            { action: 'step', label: isStep ? '✓ Step' : 'Step', applied: isStep },
+            { action: 'success', label: isSuccess ? '✓ Done' : 'Success', applied: isSuccess }
           ]
         },
-        focus: { icon: '👆', title: `focus ${sel}`, detail: '', actions: [] },
-        blur: { icon: '👇', title: `blur ${sel}`, detail: '', actions: [] },
+        focus: { 
+          icon: '◎', 
+          title: `Focus: ${getFieldName(sel, event.data?.label)}`, 
+          detail: '', 
+          actions: [] 
+        },
+        blur: { 
+          icon: '○', 
+          title: `Blur: ${getFieldName(sel, event.data?.label)}`, 
+          detail: '', 
+          actions: [] 
+        },
         network: {
-          icon: '📡',
-          title: `${event.data?.method || 'GET'} ${DOM.truncate(event.data?.url, 35)}`,
-          detail: `${event.data?.status || '...'} • ${event.data?.duration || 0}ms`,
-          actions: event.data?.body ? [{ action: 'scrub', label: 'Scrub Keys' }] : []
+          icon: '↗',
+          title: `${event.data?.method || 'GET'} ${formatUrl(event.data?.url)}`,
+          detail: `${event.data?.status || '···'} · ${event.data?.duration || 0}ms`,
+          actions: event.data?.body ? [{ action: 'scrub', label: 'Scrub' }] : []
         },
         error: {
-          icon: '❌',
-          title: `error (${event.data?.errorType || 'unknown'})`,
+          icon: '⚠',
+          title: `${event.data?.errorType || 'Error'}`,
           detail: DOM.truncate(event.data?.message, 50),
           actions: []
         },
         navigation: {
-          icon: '🔄',
-          title: 'Page redirect',
+          icon: '↻',
+          title: 'Page Navigation',
           detail: DOM.truncate(event.data?.fromUrl, 40),
           actions: []
         },
         session: {
-          icon: event.subtype === 'start' ? '🚀' : '🏁',
-          title: event.subtype === 'start' ? 'Recording started' : 'Recording ended',
-          detail: event.subtype === 'start' ? 'rrweb capturing DOM' : `${event.data?.rrwebEvents || 0} events`,
+          icon: event.subtype === 'start' ? '●' : '■',
+          title: event.subtype === 'start' ? 'Recording Started' : 'Recording Ended',
+          detail: event.subtype === 'start' ? 'Capturing DOM changes' : `${event.data?.rrwebEvents || 0} events captured`,
           actions: []
         }
       };
