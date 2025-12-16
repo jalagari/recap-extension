@@ -44,7 +44,7 @@ export const ConfigBuilder = {
       },
 
       // rrweb options - BUILT FROM FIELDS
-      rrweb_options: this.buildRrwebOptions(clear, ignored),
+      rrweb_options: this.buildRrwebOptions(clear, ignored, steps),
 
       // Sample recording
       sample: sample ? {
@@ -64,6 +64,41 @@ export const ConfigBuilder = {
         sampling_rate: 0.25,
         capture_console: true,
         capture_network: true
+      },
+
+      // Session Quality Detection
+      sessionQuality: {
+        enabled: true,
+        weights: {
+          jsError: 40,
+          networkError: 40,
+          rageClick: 25,
+          formAbandonment: 20,
+          validationLoop: 15,
+          deadClick: 10
+        },
+        thresholds: {
+          critical: 80,
+          review: 50
+        },
+        formTracking: {
+          minInteractions: 3,
+          completionSelector: '[data-recap-complete]'
+        },
+        rageClick: { count: 3, windowMs: 1000, radiusPx: 50 },
+        validationLoop: { count: 3 },
+        deadClick: {
+          whitelist: ['.cmp-image', '.cmp-icon', '[data-recap-safe]']
+        }
+      },
+
+      // Report Button
+      reportButton: {
+        enabled: false,
+        mode: 'on_error',
+        position: 'bottom-right',
+        showAfterScore: 40,
+        categories: ['Bug', 'Slow', 'Confusing', 'Other']
       }
     };
   },
@@ -72,9 +107,10 @@ export const ConfigBuilder = {
    * Build rrweb options from field configurations
    * PRIVACY-FIRST: maskAllInputs + selective unmasking
    */
-  buildRrwebOptions(clear = [], ignored = []) {
+  buildRrwebOptions(clear = [], ignored = [], steps = []) {
     const clearSelectors = clear.map(f => f.selector).filter(Boolean);
     const ignoreSelectors = ignored.map(f => f.selector).filter(Boolean);
+    const stepSelectors = steps.map(f => f.selector).filter(Boolean);
 
     return {
       // MASKING - rrweb native (PRIVACY-FIRST)
@@ -106,7 +142,10 @@ export const ConfigBuilder = {
         headMetaHttpEquiv: true,
         headMetaAuthorship: true,
         headMetaVerification: true
-      }
+      },
+
+      // Step tracking selectors (for journey milestones)
+      stepSelectors: stepSelectors
     };
   },
 

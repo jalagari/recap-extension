@@ -79,6 +79,7 @@ const Messaging = {
 
   /**
    * Send message to content script
+   * Will inject content script if not present
    */
   async sendToTab(type, data = {}) {
     if (!activeTabId) {
@@ -88,11 +89,46 @@ const Messaging = {
       Log.warn('No active tab');
       return null;
     }
+    
     try {
       return await chrome.tabs.sendMessage(activeTabId, { type, ...data });
     } catch (e) {
+      // Content script not loaded - try to inject it
+      if (e.message?.includes('Receiving end does not exist')) {
+        Log.info('Content script not found, injecting...');
+        const injected = await this.injectContentScript();
+        if (injected) {
+          // Wait for script to initialize
+          await new Promise(r => setTimeout(r, 500));
+          try {
+            return await chrome.tabs.sendMessage(activeTabId, { type, ...data });
+          } catch (e2) {
+            Log.error('sendToTab failed after injection:', e2);
+            return null;
+          }
+        }
+      }
       Log.error('sendToTab failed:', e);
       return null;
+    }
+  },
+
+  /**
+   * Inject content script programmatically
+   */
+  async injectContentScript() {
+    if (!activeTabId) return false;
+    
+    try {
+      await chrome.scripting.executeScript({
+        target: { tabId: activeTabId },
+        files: ['content/content.js']
+      });
+      Log.info('Content script injected successfully');
+      return true;
+    } catch (e) {
+      Log.error('Failed to inject content script:', e);
+      return false;
     }
   },
 
@@ -161,44 +197,69 @@ export const Recorder = {
       const tabId = await Messaging.getActiveTab();
       Log.debug('Active tab ID:', tabId);
       
-      // Listen for events from content script
+      // Listen for events from content script (via service worker forwarding)
       Messaging.onMessage((message, sender) => {
-        Log.debug('Message:', message.type);
-        
-        if (message.type === 'RRWEB_EVENT') {
-          const event = message.event || message.payload?.event;
-          if (event && isRecording) {
-            events.push(event);
-            Log.debug('Events:', events.length);
-            if (eventCallback) eventCallback(event);
-          }
-        }
-        
-        if (message.type === 'RECORDING_STARTED') {
-          Log.info('Recording started');
-          isRecording = true;
-        }
-        
-        if (message.type === 'RECORDING_RESUMED') {
-          Log.info('Recording resumed on new page:', message.url);
-          isRecording = true;
-          
-          // Add navigation event
-          const navEvent = {
-            type: 5,
-            timestamp: Date.now(),
-            data: { tag: 'page_navigation', payload: { url: message.url } }
-          };
-          events.push(navEvent);
-          if (eventCallback) eventCallback(navEvent);
-        }
-        
-        if (message.type === 'RECORDING_STOPPED') {
-          Log.info('Recording stopped, events:', message.events?.length);
-        }
+        // Accept messages from any source (tab or service worker forward)
+        this.handleMessage(message);
       });
       
       Log.debug('Message listener set up');
+    }
+  },
+  
+  /**
+   * Handle incoming messages from content script
+   * Critical for cross-page recording - sidepanel accumulates ALL events
+   */
+  handleMessage(message) {
+    if (!message?.type) return;
+    
+    switch (message.type) {
+      case 'RRWEB_EVENT': {
+        // Only collect events if we're recording
+        // This is important to prevent stale events from previous sessions
+        if (!isRecording) {
+          Log.debug('Event ignored - not recording');
+          return;
+        }
+        
+        const event = message.event || message.payload?.event;
+        if (event) {
+          events.push(event);
+          if (eventCallback) eventCallback(event);
+          
+          // Log every 10th event to avoid spam
+          if (events.length % 10 === 0 || events.length <= 3) {
+            Log.debug('Events collected:', events.length);
+          }
+        }
+        break;
+      }
+      
+      case 'RECORDING_STARTED':
+        Log.info('Recording confirmed by content script');
+        isRecording = true;
+        break;
+        
+      case 'RECORDING_RESUMED':
+        // CROSS-PAGE: Content script resumed on new page
+        // Set isRecording FIRST so subsequent events are captured
+        Log.info('Recording resumed on new page:', message.url);
+        isRecording = true;
+        
+        // Add navigation event to track page transitions
+        const navEvent = {
+          type: 5,
+          timestamp: Date.now(),
+          data: { tag: 'page_navigation', payload: { url: message.url } }
+        };
+        events.push(navEvent);
+        if (eventCallback) eventCallback(navEvent);
+        break;
+        
+      case 'RECORDING_STOPPED':
+        Log.info('Recording stopped by content script, events:', message.events?.length);
+        break;
     }
   },
   

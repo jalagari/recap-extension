@@ -1,14 +1,19 @@
 {
   "manifest_version": 3,
   "name": "Recap - Session Recording",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "description": "Record, configure, and replay user sessions with PII masking (ESM)",
   
   "permissions": [
     "activeTab",
     "sidePanel",
     "storage",
-    "tabs"
+    "tabs",
+    "scripting"
+  ],
+  
+  "host_permissions": [
+    "<all_urls>"
   ],
   
   "action": {
@@ -42,7 +47,7 @@
         "lib/rrweb.min.js",
         "lib/rrweb-player.min.js",
         "lib/rrweb-player.min.css",
-        "lib/recorder.js",
+        "lib/sdk/*",
         "content/injected.js"
       ],
       "matches": ["<all_urls>"]

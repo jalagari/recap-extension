@@ -498,11 +498,53 @@ const App = {
   showConfigureView() {
     Views.show('configure');
 
-    $('#configure-title').textContent = `Configure: ${State.editingConfig?.name || 'New Config'}`;
+    // Header info
+    $('#configure-title').textContent = State.editingConfig?.name || 'New Config';
     $('#sample-duration').textContent = formatDuration(State.editingConfig?.sample?.duration_ms || 0);
     $('#sample-field-count').textContent = State.detectedFields.length;
 
+    // Reset to first tab (Fields)
+    $$('.config-tab').forEach(t => t.classList.remove('active'));
+    $$('.config-tab-content').forEach(c => c.classList.add('hidden'));
+    $('.config-tab[data-config-tab="fields"]')?.classList.add('active');
+    $('#config-tab-fields')?.classList.remove('hidden');
+
+    // Render fields list
     FieldsUI.render(State.detectedFields, $('#fields-list'));
+
+    // Load settings from existing config
+    const config = State.editingConfig || {};
+    const sq = config.sessionQuality || {};
+    const rb = config.reportButton || {};
+    const settings = config.settings || {};
+    
+    // Quality tab values
+    $('#quality-enabled').checked = sq.enabled !== false;
+    $('#weight-jsError').value = sq.weights?.jsError ?? 40;
+    $('#weight-networkError').value = sq.weights?.networkError ?? 40;
+    $('#weight-rageClick').value = sq.weights?.rageClick ?? 25;
+    $('#weight-formAbandonment').value = sq.weights?.formAbandonment ?? 20;
+    $('#weight-validationLoop').value = sq.weights?.validationLoop ?? 15;
+    $('#weight-deadClick').value = sq.weights?.deadClick ?? 10;
+    $('#threshold-critical').value = sq.thresholds?.critical ?? 80;
+    $('#threshold-review').value = sq.thresholds?.review ?? 50;
+    
+    // Apply quality enabled state
+    const qualityBody = $('#quality-body');
+    if (qualityBody) {
+      qualityBody.classList.toggle('disabled', !$('#quality-enabled').checked);
+    }
+    
+    // Settings tab values
+    $('#report-enabled').checked = rb.enabled ?? false;
+    $('#report-mode').value = rb.mode || 'on_error';
+    $('#report-mode').disabled = !rb.enabled;
+    $('#sampling-rate').value = settings.sampling_rate ?? 0.25;
+
+    // Load completion selector
+    const completionSel = State.editingConfig?.fields?.completion?.selector || 
+                          sq.formTracking?.completionSelector || '';
+    $('#completion-selector').value = completionSel;
   },
 
   async saveConfiguration() {
@@ -519,6 +561,41 @@ const App = {
       if (completionSelector) {
         config.fields.completion = { selector: completionSelector };
       }
+
+      // Get session quality settings from UI
+      config.sessionQuality = {
+        enabled: $('#quality-enabled')?.checked ?? true,
+        weights: {
+          jsError: parseInt($('#weight-jsError')?.value) || 40,
+          networkError: parseInt($('#weight-networkError')?.value) || 40,
+          rageClick: parseInt($('#weight-rageClick')?.value) || 25,
+          formAbandonment: parseInt($('#weight-formAbandonment')?.value) || 20,
+          validationLoop: parseInt($('#weight-validationLoop')?.value) || 15,
+          deadClick: parseInt($('#weight-deadClick')?.value) || 10
+        },
+        thresholds: {
+          critical: parseInt($('#threshold-critical')?.value) || 80,
+          review: parseInt($('#threshold-review')?.value) || 50
+        },
+        formTracking: {
+          minInteractions: 3,
+          completionSelector: completionSelector || '[data-recap-complete]'
+        }
+      };
+
+      // Get report button settings
+      config.reportButton = {
+        enabled: $('#report-enabled')?.checked ?? false,
+        mode: $('#report-mode')?.value || 'on_error',
+        position: 'bottom-right',
+        showAfterScore: 40
+      };
+
+      // Get sampling rate
+      config.settings = {
+        ...config.settings,
+        sampling_rate: parseFloat($('#sampling-rate')?.value) || 0.25
+      };
 
       const saved = await ConfigManager.save(config);
 
@@ -676,6 +753,35 @@ const App = {
       tab.addEventListener('click', () => {
         FieldsUI.setFilter(tab.dataset.filter, $('#fields-list'));
       });
+    });
+
+    // Config main tabs (Fields / Quality / Settings)
+    $$('.config-tab[data-config-tab]').forEach(tab => {
+      tab.addEventListener('click', () => {
+        // Update active tab
+        $$('.config-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        
+        // Show corresponding content
+        $$('.config-tab-content').forEach(c => c.classList.add('hidden'));
+        $(`#config-tab-${tab.dataset.configTab}`)?.classList.remove('hidden');
+      });
+    });
+
+    // Quality toggle - enable/disable quality settings
+    $('#quality-enabled')?.addEventListener('change', (e) => {
+      const body = $('#quality-body');
+      if (body) {
+        body.classList.toggle('disabled', !e.target.checked);
+      }
+    });
+
+    // Report button toggle
+    $('#report-enabled')?.addEventListener('change', (e) => {
+      const modeSelect = $('#report-mode');
+      if (modeSelect) {
+        modeSelect.disabled = !e.target.checked;
+      }
     });
 
     // Live recording filter tabs
@@ -846,33 +952,32 @@ const App = {
 
     const config = State.currentConfig;
     
-    // PRIVACY-FIRST: Extract clear (unmasked) and ignored selectors
+    // PRIVACY-FIRST: Extract field selectors
     const clearFields = config.fields?.clear || [];
     const ignoredFields = config.fields?.ignored || [];
+    const stepFields = config.fields?.steps || [];
     const clearSelectors = clearFields.map(f => f.selector).filter(Boolean);
     const ignoreSelectors = ignoredFields.map(f => f.selector).filter(Boolean);
+    const stepSelectors = stepFields.map(f => f.selector).filter(Boolean);
     
     // Build rrweb options
     const rrwebOptions = {
+      maskAllInputs: true,
       maskInputOptions: { password: true },
+      clearSelectors: clearSelectors,
+      ignoreSelector: ignoreSelectors.length ? ignoreSelectors.join(',') : null,
+      stepSelectors: stepSelectors,
       sampling: { mousemove: 50, scroll: 150, input: 'last' },
       slimDOMOptions: { script: true, comment: true },
       recordCanvas: false,
       collectFonts: false
     };
-    
-    // PRIVACY-FIRST: maskAllInputs is true, clearSelectors are for unmasking
-    rrwebOptions.maskAllInputs = true;
-    rrwebOptions.clearSelectors = clearSelectors; // For selective unmasking
-    if (ignoreSelectors.length > 0) {
-      rrwebOptions.ignoreSelector = ignoreSelectors.join(',');
-    }
 
     // Generate Embed Script (for HTML pages)
-    const embedScript = this._generateEmbedScript(config, clearSelectors, ignoreSelectors, rrwebOptions);
+    const embedScript = this._generateEmbedScript(config);
     
     // Generate Console Script (for browser DevTools)
-    const consoleScript = this._generateConsoleScript(config, clearSelectors, ignoreSelectors, rrwebOptions);
+    const consoleScript = this._generateConsoleScript(config, clearSelectors, ignoreSelectors, stepSelectors);
 
     // Show in modal with tabs
     const modal = $('#modal-export');
@@ -934,37 +1039,151 @@ const App = {
    * Generate embed script for HTML pages
    * For production: uses configUrl (deployed to your server)
    */
-  _generateEmbedScript(config, clearSelectors, ignoreSelectors, rrwebOptions) {
+  _generateEmbedScript(config) {
     const configId = config.id;
+    const sq = config.sessionQuality || {};
+    const rb = config.reportButton || {};
+    const samplingRate = config.settings?.sampling_rate ?? 0.25;
     
-    return `<script src="https://YOUR_CDN/recap-sdk.js" 
-        data-config="/api/configs/${configId}.json"
-        data-endpoint="/api/recordings"><\/script>`;
+    // Build session quality config from saved values
+    const qualityConfig = sq.enabled !== false ? `
+    // Session Quality Detection
+    sessionQuality: {
+      enabled: true,
+      weights: {
+        jsError: ${sq.weights?.jsError ?? 40},
+        networkError: ${sq.weights?.networkError ?? 40},
+        rageClick: ${sq.weights?.rageClick ?? 25},
+        formAbandonment: ${sq.weights?.formAbandonment ?? 20},
+        validationLoop: ${sq.weights?.validationLoop ?? 15},
+        deadClick: ${sq.weights?.deadClick ?? 10}
+      },
+      thresholds: {
+        critical: ${sq.thresholds?.critical ?? 80},
+        review: ${sq.thresholds?.review ?? 50}
+      },
+      onCritical: (report) => console.warn('Critical session:', report)
+    },` : `
+    // Session Quality Detection (disabled)
+    sessionQuality: { enabled: false },`;
+
+    const reportConfig = rb.enabled ? `
+    // Report Button
+    reportButton: {
+      enabled: true,
+      mode: '${rb.mode || 'on_error'}',
+      position: '${rb.position || 'bottom-right'}'
+    },` : '';
+    
+    return `<!-- Recap Session Recording (Privacy-First) -->
+<!-- Config: ${config.name} | Sampling: ${samplingRate * 100}% -->
+<script type="module">
+  // SDK from your CDN
+  import { RecapSDK } from 'https://YOUR_CDN/recap-sdk.js';
+  
+  // Initialize with Cloudflare Worker API
+  RecapSDK.init({
+    // API endpoint (Cloudflare Worker)
+    apiBase: 'https://recap-api.YOUR_DOMAIN.workers.dev',
+    configId: '${configId}',
+    ${qualityConfig}${reportConfig}
+    // Sampling: ${samplingRate * 100}% of sessions
+    samplingRate: ${samplingRate}
+  });
+<\/script>`;
   },
 
   /**
    * Generate console script for testing
    * PRIVACY-FIRST: maskAllInputs + clearSelectors for selective unmasking
    */
-  _generateConsoleScript(config, clearSelectors, ignoreSelectors) {
+  _generateConsoleScript(config, clearSelectors, ignoreSelectors, stepSelectors) {
     const extId = typeof chrome !== 'undefined' && chrome.runtime?.id ? chrome.runtime.id : 'EXTENSION_ID';
     const fileName = (config.name || 'recording').replace(/\s+/g, '-');
+    const sq = config.sessionQuality || {};
     
-    // PRIVACY-FIRST config
+    // PRIVACY-FIRST config with session quality from saved values
     const inlineConfig = {
       name: config.name,
       fields: {
         clear: clearSelectors.map(s => ({ selector: s })),
-        ignored: ignoreSelectors.map(s => ({ selector: s }))
+        ignored: ignoreSelectors.map(s => ({ selector: s })),
+        steps: stepSelectors.map(s => ({ selector: s }))
       },
       rrweb_options: {
         maskAllInputs: true,
         clearSelectors: clearSelectors,
+        stepSelectors: stepSelectors,
         ignoreSelector: ignoreSelectors.length ? ignoreSelectors.join(',') : null
-      }
+      },
+      sessionQuality: {
+        enabled: sq.enabled !== false,
+        weights: {
+          jsError: sq.weights?.jsError ?? 40,
+          networkError: sq.weights?.networkError ?? 40,
+          rageClick: sq.weights?.rageClick ?? 25,
+          formAbandonment: sq.weights?.formAbandonment ?? 20,
+          validationLoop: sq.weights?.validationLoop ?? 15,
+          deadClick: sq.weights?.deadClick ?? 10
+        },
+        thresholds: {
+          critical: sq.thresholds?.critical ?? 80,
+          review: sq.thresholds?.review ?? 50
+        }
+      },
+      reportButton: config.reportButton || { enabled: false }
     };
     
-    return `(async()=>{const s=document.createElement('script');s.src='chrome-extension://${extId}/lib/recorder.js';document.head.appendChild(s);await new Promise(r=>s.onload=r);await RecapSDK.init({config:${JSON.stringify(inlineConfig)},debug:true});RecapSDK.start();console.log('%c🔴 Recording (Privacy-First)','color:red;font-weight:bold');window.recapStop=()=>RecapSDK.stop();window.recapDownload=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(RecapSDK.getEvents(),null,2)]));a.download='${fileName}.json';a.click()}})()`;
+    return `// Recap Console Test Script
+// Config: ${config.name}
+// Quality Detection: ${sq.enabled !== false ? 'ON' : 'OFF'}
+(async()=>{
+  // Load Recap SDK
+  const s=document.createElement('script');
+  s.src='chrome-extension://${extId}/lib/sdk/index.js';
+  s.type='module';
+  document.head.appendChild(s);
+  await new Promise(r=>s.onload=r);
+  
+  // Initialize
+  await RecapSDK.init({
+    config: ${JSON.stringify(inlineConfig, null, 2)},
+    debug: true,
+    testMode: true
+  });
+  
+  RecapSDK.start();
+  console.log('%c🔴 Recording Started','color:red;font-weight:bold');
+  console.log('Quality Detection: ${sq.enabled !== false ? 'ENABLED' : 'DISABLED'}');
+  
+  // Helper commands
+  window.recapStop = () => {
+    RecapSDK.stop();
+    console.log('%c⏹ Recording Stopped','color:orange;font-weight:bold');
+    console.table(RecapSDK.getQualityReport());
+  };
+  window.recapDownload = () => {
+    const data = { 
+      config: '${config.name}',
+      events: RecapSDK.getEvents(), 
+      quality: RecapSDK.getQualityReport(),
+      exportedAt: new Date().toISOString()
+    };
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)]));
+    a.download = '${fileName}-' + Date.now() + '.json';
+    a.click();
+    console.log('Downloaded:', a.download);
+  };
+  window.recapScore = () => {
+    const score = RecapSDK.getQualityScore();
+    const severity = RecapSDK.getQualitySeverity();
+    console.log('%cQuality Score: ' + score + ' (' + severity + ')', 
+      'color:' + (severity === 'critical' ? 'red' : severity === 'review' ? 'orange' : 'green') + ';font-weight:bold');
+  };
+  
+  console.log('%cCommands: recapStop() | recapDownload() | recapScore()','color:gray');
+})()`;
   }
 };
 

@@ -15,6 +15,7 @@ let events = [];
 let sessionId = null;
 let options = null;
 let pageReady = false;
+let pendingStart = null; // Queue start if page not ready
 
 // ============================================================================
 // Page Communication
@@ -33,7 +34,15 @@ window.addEventListener('message', (e) => {
     case 'READY':
       pageReady = true;
       log('Page ready, hasRrweb:', data?.hasRrweb);
-      checkAndResume();
+      
+      // Process any pending start request
+      if (pendingStart) {
+        log('Processing pending start');
+        sendToPage('START', pendingStart);
+        pendingStart = null;
+      } else {
+        checkAndResume();
+      }
       break;
       
     case 'STARTED':
@@ -64,6 +73,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   log('From extension:', type);
   
   switch (type) {
+    case 'PING':
+      // Health check - respond immediately
+      sendResponse({ success: true, ready: pageReady, isRecording, eventCount: events.length });
+      break;
+      
     case 'START_RECORDING':
       events = [];
       sessionId = payload.sessionId || `sess_${Date.now()}`;
@@ -72,8 +86,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       saveSession();
       if (pageReady) {
         sendToPage('START', { options });
+      } else {
+        log('Page not ready yet, will start when ready');
+        // Queue the start - will be triggered when READY is received
+        pendingStart = { options };
       }
-      sendResponse({ success: true, sessionId });
+      sendResponse({ success: true, sessionId, pageReady });
       break;
       
     case 'STOP_RECORDING':
@@ -84,7 +102,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       break;
       
     case 'GET_STATUS':
-      sendResponse({ success: true, isRecording, eventCount: events.length });
+      sendResponse({ success: true, isRecording, eventCount: events.length, pageReady });
       break;
       
     case 'GET_EVENTS':
@@ -92,7 +110,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       break;
       
     default:
-      sendResponse({ success: false });
+      sendResponse({ success: false, error: 'Unknown message type' });
   }
   
   return true;

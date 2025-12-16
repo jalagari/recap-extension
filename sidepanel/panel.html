@@ -115,16 +115,16 @@
       </div>
     </section>
 
-    <!-- VIEW: Configure Fields -->
+    <!-- VIEW: Configure Fields (Tabbed Interface) -->
     <section id="view-configure" class="view hidden">
       <div class="configure-header">
-        <h2 id="configure-title">Configure Fields</h2>
+        <h2 id="configure-title">Configure</h2>
         <button id="btn-cancel-config" class="btn btn-ghost btn-sm">✕</button>
       </div>
       
       <!-- Save button at top -->
       <div class="configure-actions-top">
-        <button id="btn-save-config" class="btn btn-primary">💾 Save Configuration</button>
+        <button id="btn-save-config" class="btn btn-primary">💾 Save</button>
         <button id="btn-preview-sample" class="btn btn-secondary">▶ Preview</button>
       </div>
       
@@ -134,32 +134,142 @@
         <span><span id="sample-field-count">0</span> fields</span>
       </div>
       
-      <!-- Legend for actions -->
-      <div class="actions-legend">
-        <span class="legend-item"><span class="legend-icon">🔒</span> Mask = hide value</span>
-        <span class="legend-item"><span class="legend-icon">🚫</span> Ignore = don't record</span>
-        <span class="legend-item"><span class="legend-icon">📍</span> Step = track in funnel</span>
+      <!-- Main Configuration Tabs -->
+      <div class="config-tabs">
+        <button class="config-tab active" data-config-tab="fields">📝 Fields</button>
+        <button class="config-tab" data-config-tab="quality">📊 Quality</button>
+        <button class="config-tab" data-config-tab="settings">⚙️ Settings</button>
       </div>
       
-      <div class="filter-tabs">
-        <button class="filter-tab active" data-filter="all">All</button>
-        <button class="filter-tab" data-filter="input">⌨️ Inputs</button>
-        <button class="filter-tab" data-filter="click">🖱️ Clicks</button>
-        <span class="filter-divider">|</span>
-        <button class="filter-tab" data-filter="masked">🔒 Masked</button>
-        <button class="filter-tab" data-filter="clear">✅ Clear</button>
-        <button class="filter-tab" data-filter="ignored">🚫 Ignored</button>
-        <button class="filter-tab" data-filter="steps">📍 Steps</button>
+      <!-- TAB 1: Fields -->
+      <div id="config-tab-fields" class="config-tab-content active">
+        <div class="actions-legend">
+          <span class="legend-item"><span class="legend-icon">🔒</span> Mask</span>
+          <span class="legend-item"><span class="legend-icon">🚫</span> Ignore</span>
+          <span class="legend-item"><span class="legend-icon">📍</span> Step</span>
+        </div>
+        
+        <div class="filter-tabs">
+          <button class="filter-tab active" data-filter="all">All</button>
+          <button class="filter-tab" data-filter="input">⌨️</button>
+          <button class="filter-tab" data-filter="click">🖱️</button>
+          <span class="filter-divider">|</span>
+          <button class="filter-tab" data-filter="masked">🔒</button>
+          <button class="filter-tab" data-filter="clear">✅</button>
+          <button class="filter-tab" data-filter="ignored">🚫</button>
+          <button class="filter-tab" data-filter="steps">📍</button>
+        </div>
+        
+        <div id="fields-list" class="fields-list">
+          <!-- Populated dynamically -->
+        </div>
       </div>
       
-      <div id="fields-list" class="fields-list">
-        <!-- Populated dynamically -->
-      </div>
-      
-      <div class="completion-section">
-        <label for="completion-selector">✅ Completion Selector</label>
-        <input type="text" id="completion-selector" placeholder=".success-message, #thank-you">
+      <!-- TAB 2: Quality Detection -->
+      <div id="config-tab-quality" class="config-tab-content hidden">
+        <div class="quality-header">
+          <h3>Session Quality Detection</h3>
+          <label class="toggle-switch">
+            <input type="checkbox" id="quality-enabled" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        
+        <div class="quality-body" id="quality-body">
+          <div class="settings-card">
+            <h4>🎯 Signal Weights</h4>
+            <p class="settings-hint">Points per occurrence (higher = more impact)</p>
+            
+            <div class="weight-grid">
+              <div class="weight-row">
+                <span>💥 JS Error</span>
+                <input type="number" id="weight-jsError" value="40" min="0" max="100">
+              </div>
+              <div class="weight-row">
+                <span>🌐 Network Error</span>
+                <input type="number" id="weight-networkError" value="40" min="0" max="100">
+              </div>
+              <div class="weight-row">
+                <span>😤 Rage Click</span>
+                <input type="number" id="weight-rageClick" value="25" min="0" max="100">
+              </div>
+              <div class="weight-row">
+                <span>🚪 Abandonment</span>
+                <input type="number" id="weight-formAbandonment" value="20" min="0" max="100">
+              </div>
+              <div class="weight-row">
+                <span>🔄 Validation Loop</span>
+                <input type="number" id="weight-validationLoop" value="15" min="0" max="100">
+              </div>
+              <div class="weight-row">
+                <span>👆 Dead Click</span>
+                <input type="number" id="weight-deadClick" value="10" min="0" max="100">
+              </div>
+            </div>
           </div>
+          
+          <div class="settings-card">
+            <h4>📏 Thresholds</h4>
+            <div class="threshold-grid">
+              <div class="threshold-row critical">
+                <span>🚨 Critical</span>
+                <input type="number" id="threshold-critical" value="80" min="0" max="200">
+              </div>
+              <div class="threshold-row review">
+                <span>⚠️ Review</span>
+                <input type="number" id="threshold-review" value="50" min="0" max="200">
+              </div>
+            </div>
+            <p class="settings-hint">Score ≥ Critical → Alert | Score ≥ Review → Flag</p>
+          </div>
+        </div>
+      </div>
+      
+      <!-- TAB 3: Settings -->
+      <div id="config-tab-settings" class="config-tab-content hidden">
+        <div class="settings-card">
+          <h4>✅ Form Completion</h4>
+          <p class="settings-hint">CSS selector for success state (detects form completion)</p>
+          <input type="text" id="completion-selector" class="settings-input" 
+                 placeholder=".success-message, #thank-you, [data-recap-complete]">
+        </div>
+        
+        <div class="settings-card">
+          <h4>🐛 Report Button</h4>
+          <p class="settings-hint">Let users report issues during the session</p>
+          
+          <div class="setting-row">
+            <label class="checkbox-label">
+              <input type="checkbox" id="report-enabled">
+              <span>Enable Report Button</span>
+            </label>
+          </div>
+          
+          <div class="setting-row">
+            <label>Show Mode</label>
+            <select id="report-mode">
+              <option value="on_error">On Error (when issues detected)</option>
+              <option value="always">Always Visible</option>
+              <option value="disabled">Disabled</option>
+            </select>
+          </div>
+        </div>
+        
+        <div class="settings-card">
+          <h4>📊 Sampling</h4>
+          <p class="settings-hint">Percentage of sessions to record</p>
+          <div class="setting-row">
+            <label>Sample Rate</label>
+            <select id="sampling-rate">
+              <option value="1">100% (All sessions)</option>
+              <option value="0.5">50%</option>
+              <option value="0.25" selected>25%</option>
+              <option value="0.1">10%</option>
+              <option value="0.05">5%</option>
+            </select>
+          </div>
+        </div>
+      </div>
     </section>
 
     <!-- VIEW: Config Exists (Main Dashboard) -->
