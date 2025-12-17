@@ -26,7 +26,7 @@
   },
   
   "side_panel": {
-    "default_path": "sidepanel/panel.html"
+    "default_path": "sidepanel/panel-v2.html"
   },
   
   "background": {
@@ -36,7 +36,7 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["content/content.js"],
+      "js": ["content/content-v2.js"],
       "run_at": "document_start"
     }
   ],
@@ -48,7 +48,8 @@
         "lib/rrweb-player.min.js",
         "lib/rrweb-player.min.css",
         "lib/sdk/*",
-        "content/injected.js"
+        "content/injected.js",
+        "content/recorder-inject.js"
       ],
       "matches": ["<all_urls>"]
     }

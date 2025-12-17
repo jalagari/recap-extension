@@ -82,7 +82,8 @@ const FORWARD_TYPES = [
   'RECORDING_STARTED',
   'RECORDING_STOPPED',
   'RECORDING_ERROR',
-  'RECORDING_RESUMED'
+  'RECORDING_RESUMED',
+  'LIVE_EVENT'
 ];
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -133,4 +134,4 @@ chrome.tabs.onActivated.addListener(async (info) => {
   }
 });
 
-log('Service Worker v4.0.0 started');
+log('Service Worker v5.0.0 started');

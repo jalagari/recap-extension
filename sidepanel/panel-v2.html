@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Recap</title>
+  <link rel="stylesheet" href="panel-v2.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Header -->
+    <header class="header">
+      <div class="logo">
+        <div class="logo-icon">◉</div>
+        <div class="logo-text">
+          <span class="logo-name">Recap</span>
+          <span class="logo-version">v3.1</span>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button id="btn-dashboard" class="btn btn-ghost" title="Open Dashboard">
+          📊
+        </button>
+        <button id="btn-settings" class="btn btn-ghost" title="Settings">
+          ⚙️
+        </button>
+      </div>
+    </header>
+
+    <!-- Current Page Info -->
+    <section class="page-info">
+      <div class="page-url" id="current-url">Loading...</div>
+      <div class="page-status" id="page-status">
+        <span class="status-dot"></span>
+        <span class="status-text">Checking...</span>
+      </div>
+    </section>
+
+    <!-- Main Content -->
+    <main class="main">
+      
+      <!-- View: No Config -->
+      <section id="view-no-config" class="view hidden">
+        <div class="empty-state">
+          <div class="empty-icon">📝</div>
+          <h2>No Configuration</h2>
+          <p>Record a sample session to configure field masking for this page.</p>
+          <button id="btn-record-new" class="btn btn-primary btn-lg">
+            🔴 Record Sample
+          </button>
+        </div>
+      </section>
+
+      <!-- View: Has Config -->
+      <section id="view-has-config" class="view hidden">
+        <div class="config-card">
+          <div class="config-header">
+            <h3 id="config-name">Form Name</h3>
+            <span class="config-version" id="config-version">v1</span>
+          </div>
+          <div class="config-stats">
+            <span class="stat" id="stat-clear">✅ 0 clear</span>
+            <span class="stat" id="stat-masked">🔒 0 masked</span>
+            <span class="stat" id="stat-steps">📍 0 steps</span>
+          </div>
+          <div class="config-quality" id="config-quality">
+            <span class="quality-label">Quality Detection:</span>
+            <span class="quality-status">✓ Enabled</span>
+          </div>
+        </div>
+        
+        <div class="action-buttons">
+          <button id="btn-record-update" class="btn btn-primary">
+            🔴 Record New Sample
+          </button>
+          <button id="btn-edit-config" class="btn btn-secondary">
+            ✏️ Edit Config
+          </button>
+        </div>
+        
+        <div class="export-section">
+          <h4>Export for Production</h4>
+          <div class="export-buttons">
+            <button id="btn-export-embed" class="btn btn-outline">
+              📋 Embed Script
+            </button>
+            <button id="btn-export-console" class="btn btn-outline">
+              🖥️ Console Script
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- View: Recording -->
+      <section id="view-recording" class="view hidden">
+        <div class="recording-header">
+          <div class="recording-indicator">
+            <div class="recording-dot"></div>
+            <span>Recording...</span>
+          </div>
+          <button id="btn-stop-recording" class="btn btn-danger">
+            ⏹️ Stop
+          </button>
+        </div>
+        
+        <div class="recording-stats">
+          <div class="stat-item">
+            <span class="stat-value" id="rec-duration">0:00</span>
+            <span class="stat-label">Duration</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value" id="rec-events">0</span>
+            <span class="stat-label">Events</span>
+          </div>
+        </div>
+        
+        <div class="recording-tips">
+          <p>💡 Fill out the form normally to capture all fields</p>
+        </div>
+        
+        <div class="live-events-container">
+          <div class="live-events-header">
+            <span>Live Events</span>
+            <div class="live-filters">
+              <button class="live-filter active" data-filter="all">All</button>
+              <button class="live-filter" data-filter="input">Input</button>
+              <button class="live-filter" data-filter="click">Click</button>
+            </div>
+          </div>
+          <div class="live-events-list" id="live-events-list">
+            <div class="live-event-placeholder">Events will appear here...</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- View: Configure -->
+      <section id="view-configure" class="view hidden">
+        <div class="configure-header">
+          <h2>Configure Fields</h2>
+          <button id="btn-cancel-configure" class="btn btn-ghost">✕</button>
+        </div>
+        
+        <div class="form-group">
+          <label for="config-form-name">Form Name</label>
+          <input type="text" id="config-form-name" placeholder="e.g., Credit Card Application">
+        </div>
+        
+        <div class="sample-info">
+          <span>📎 <span id="sample-events">0</span> events</span>
+          <span>•</span>
+          <span><span id="sample-duration">0s</span></span>
+        </div>
+        
+        <div class="tabs">
+          <button class="tab active" data-tab="fields">Fields</button>
+          <button class="tab" data-tab="quality">Quality</button>
+          <button class="tab" data-tab="settings">Settings</button>
+        </div>
+        
+        <div class="tab-content" id="tab-fields">
+          <div class="filter-bar">
+            <button class="filter active" data-filter="all">All</button>
+            <button class="filter" data-filter="input">Inputs</button>
+            <button class="filter" data-filter="click">Clicks</button>
+            <button class="filter" data-filter="ignored">Ignored</button>
+          </div>
+          
+          <div class="fields-list" id="fields-list">
+            <!-- Populated dynamically -->
+          </div>
+        </div>
+        
+        <div class="tab-content hidden" id="tab-quality">
+          <div class="setting-group">
+            <label class="toggle-label">
+              <span>Enable Quality Detection</span>
+              <input type="checkbox" id="quality-enabled" checked>
+            </label>
+          </div>
+          
+          <div id="quality-settings">
+            <div class="setting-section">
+              <h4>Report Button</h4>
+              <div class="setting-row">
+                <label>Show Button</label>
+                <select id="report-button-mode">
+                  <option value="always">Always</option>
+                  <option value="on_error" selected>On Error</option>
+                  <option value="disabled">Disabled</option>
+                </select>
+              </div>
+            </div>
+            
+            <div class="setting-section">
+              <h4>Thresholds</h4>
+              <div class="setting-row">
+                <label>Critical</label>
+                <input type="number" id="threshold-critical" value="80" min="0" max="200">
+              </div>
+              <div class="setting-row">
+                <label>Review</label>
+                <input type="number" id="threshold-review" value="50" min="0" max="200">
+              </div>
+            </div>
+            
+            <div class="setting-section">
+              <h4>Detector Weights</h4>
+              <div class="setting-row">
+                <label>JS Error</label>
+                <input type="number" id="weight-jsError" value="40" min="0" max="100">
+              </div>
+              <div class="setting-row">
+                <label>Network Error</label>
+                <input type="number" id="weight-networkError" value="40" min="0" max="100">
+              </div>
+              <div class="setting-row">
+                <label>Rage Click</label>
+                <input type="number" id="weight-rageClick" value="25" min="0" max="100">
+              </div>
+              <div class="setting-row">
+                <label>Dead Click</label>
+                <input type="number" id="weight-deadClick" value="10" min="0" max="100">
+              </div>
+              <div class="setting-row">
+                <label>Form Abandonment</label>
+                <input type="number" id="weight-formAbandonment" value="20" min="0" max="100">
+              </div>
+              <div class="setting-row">
+                <label>Validation Loop</label>
+                <input type="number" id="weight-validationLoop" value="15" min="0" max="100">
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="tab-content hidden" id="tab-settings">
+          <div class="setting-group">
+            <label>Sampling Rate: <span id="sampling-value">25%</span></label>
+            <input type="range" id="sampling-rate" min="5" max="100" step="5" value="25">
+          </div>
+          
+          <div class="setting-group">
+            <label>Completion Selector</label>
+            <input type="text" id="completion-selector" placeholder=".success-message">
+          </div>
+        </div>
+        
+        <div class="configure-actions">
+          <button id="btn-preview" class="btn btn-secondary">▶ Preview</button>
+          <button id="btn-save-config" class="btn btn-primary">💾 Save Config</button>
+        </div>
+      </section>
+
+      <!-- View: Preview -->
+      <section id="view-preview" class="view hidden">
+        <div class="preview-header">
+          <button id="btn-back-configure" class="btn btn-ghost">← Back</button>
+          <h2>Preview</h2>
+        </div>
+        <div id="player-container" class="player-container"></div>
+      </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <a href="#" id="link-dashboard" class="footer-link">
+        📊 Open Dashboard
+      </a>
+    </footer>
+  </div>
+
+  <!-- Export Modal -->
+  <div id="modal-export" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modal-title">Export Script</h3>
+        <button id="btn-close-modal" class="btn btn-ghost">✕</button>
+      </div>
+      <div class="modal-body">
+        <pre id="export-code"></pre>
+      </div>
+      <div class="modal-actions">
+        <button id="btn-copy-code" class="btn btn-primary">📋 Copy</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="panel-v2.js"></script>
+</body>
+</html>
+
