@@ -5,570 +5,466 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Recap</title>
   <link rel="stylesheet" href="panel.css">
-  <link rel="stylesheet" href="../lib/rrweb-player.min.css">
 </head>
 <body>
-  <div id="app" class="app">
-    
-    <!-- ============================================ -->
-    <!-- HEADER - Always visible -->
-    <!-- ============================================ -->
+  <div id="app">
+    <!-- Header -->
     <header class="header">
-      <div class="header-left">
       <div class="logo">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
-            <circle cx="12" cy="12" r="4" fill="#dc2626"/>
-          </svg>
-          <span>Recap</span>
+        <div class="logo-icon">◉</div>
+        <div class="logo-text">
+          <span class="logo-name">Recap</span>
+          <span class="logo-version">v0.1</span>
         </div>
       </div>
-      <div class="header-right">
-        <button id="btn-menu" class="btn-icon" title="Menu">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="3" y1="6" x2="21" y2="6"/>
-            <line x1="3" y1="12" x2="21" y2="12"/>
-            <line x1="3" y1="18" x2="21" y2="18"/>
-          </svg>
+      <div class="header-actions">
+        <button id="btn-dashboard" class="btn btn-ghost" title="Open Dashboard">
+          📊
         </button>
       </div>
     </header>
 
-    <!-- ============================================ -->
-    <!-- VIEWS - Only one visible at a time -->
-    <!-- ============================================ -->
-    
-    <!-- VIEW: No Config Found -->
-    <section id="view-no-config" class="view">
-      <div class="url-bar">
-        <span class="url-icon">📍</span>
-        <span id="current-url" class="url-text">Loading...</span>
-      </div>
-      
-      <div class="status-card status-empty">
-        <div class="status-icon">⚪</div>
-        <div class="status-text">
-          <h3>No configuration found</h3>
-          <p>Create one by recording a sample session</p>
-        </div>
-      </div>
-      
-      <div class="create-section">
-        <h2>🎬 Create Configuration</h2>
-        
-        <div class="form-group">
-          <label for="form-name">Form Name</label>
-          <input type="text" id="form-name" placeholder="Auto-detected or enter name">
-        </div>
-        
-        <button id="btn-start-record" class="btn btn-primary btn-lg">
-          <span class="btn-icon">🔴</span>
-          Start Recording
-        </button>
-        
-        <p class="hint">Fill out the form once to capture all fields for configuration.</p>
-      </div>
-      
-      <div class="saved-configs-preview">
-        <div class="section-header">
-          <h3>📋 Saved Configurations</h3>
-          <span id="config-count" class="badge">0</span>
-        </div>
-        <div id="configs-preview-list" class="configs-preview-list">
-          <!-- Populated dynamically -->
-        </div>
-        <button id="btn-view-all-configs" class="btn btn-link">View All →</button>
-          </div>
-    </section>
-
-    <!-- VIEW: Recording in Progress -->
-    <section id="view-recording" class="view hidden">
-      <div class="recording-banner">
-        <div class="recording-indicator">
-          <span class="pulse-dot"></span>
-          <span>RECORDING</span>
-        </div>
-        <span id="recording-time" class="recording-time">00:00</span>
-      </div>
-      
-      <div class="recording-instructions">
-        <p>Fill out the form completely.</p>
-        <p>Include all steps you want to track.</p>
-      </div>
-      
-      <button id="btn-stop-record" class="btn btn-danger btn-lg">
-        <span class="btn-icon">⏹</span>
-        Stop Recording
-          </button>
-      
-      <div class="captured-events">
-        <h3>Captured Events</h3>
-        <div class="filter-tabs filter-tabs-sm">
-          <button class="filter-tab active" data-live-filter="all">All</button>
-          <button class="filter-tab" data-live-filter="input">⌨️ Input</button>
-          <button class="filter-tab" data-live-filter="click">🖱️ Click</button>
-          <button class="filter-tab" data-live-filter="error">❌ Errors</button>
-        </div>
-        <div id="live-events" class="fields-list live-events-list">
-          <!-- Populated dynamically -->
-        </div>
+    <!-- Current Page Info -->
+    <section class="page-info" id="page-info-section">
+      <div class="page-title" id="page-title">Loading...</div>
+      <div class="page-domain" id="page-domain"></div>
+      <div class="page-status" id="page-status">
+        <span class="status-dot"></span>
+        <span class="status-text">Checking...</span>
       </div>
     </section>
 
-    <!-- VIEW: Configure Fields (Tabbed Interface) -->
-    <section id="view-configure" class="view hidden">
-      <div class="configure-header">
-        <h2 id="configure-title">Configure</h2>
-        <button id="btn-cancel-config" class="btn btn-ghost btn-sm">✕</button>
-      </div>
+    <!-- Main Content -->
+    <main class="main">
       
-      <!-- Save button at top -->
-      <div class="configure-actions-top">
-        <button id="btn-save-config" class="btn btn-primary">💾 Save</button>
-        <button id="btn-preview-sample" class="btn btn-secondary">▶ Preview</button>
-      </div>
-      
-      <div class="sample-info">
-        <span>📎 <span id="sample-duration">0s</span></span>
-        <span>•</span>
-        <span><span id="sample-field-count">0</span> fields</span>
-      </div>
-      
-      <!-- Main Configuration Tabs -->
-      <div class="config-tabs">
-        <button class="config-tab active" data-config-tab="fields">📝 Fields</button>
-        <button class="config-tab" data-config-tab="quality">📊 Quality</button>
-        <button class="config-tab" data-config-tab="settings">⚙️ Settings</button>
-      </div>
-      
-      <!-- TAB 1: Fields -->
-      <div id="config-tab-fields" class="config-tab-content active">
-        <div class="actions-legend">
-          <span class="legend-item"><span class="legend-icon">🔒</span> Mask</span>
-          <span class="legend-item"><span class="legend-icon">🚫</span> Ignore</span>
-          <span class="legend-item"><span class="legend-icon">📍</span> Step</span>
+      <!-- View: No Config -->
+      <section id="view-no-config" class="view hidden">
+        <div class="setup-header">
+          <h2>New Configuration</h2>
+          <p>Configure quality detection settings.</p>
         </div>
         
-        <div class="filter-tabs">
-          <button class="filter-tab active" data-filter="all">All</button>
-          <button class="filter-tab" data-filter="input">⌨️</button>
-          <button class="filter-tab" data-filter="click">🖱️</button>
-          <span class="filter-divider">|</span>
-          <button class="filter-tab" data-filter="masked">🔒</button>
-          <button class="filter-tab" data-filter="clear">✅</button>
-          <button class="filter-tab" data-filter="ignored">🚫</button>
-          <button class="filter-tab" data-filter="steps">📍</button>
-        </div>
-        
-        <div id="fields-list" class="fields-list">
-          <!-- Populated dynamically -->
-        </div>
-      </div>
-      
-      <!-- TAB 2: Quality Detection -->
-      <div id="config-tab-quality" class="config-tab-content hidden">
-        <div class="quality-header">
-          <h3>Session Quality Detection</h3>
-          <label class="toggle-switch">
-            <input type="checkbox" id="quality-enabled" checked>
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
-        
-        <div class="quality-body" id="quality-body">
-          <div class="settings-card">
-            <h4>🎯 Signal Weights</h4>
-            <p class="settings-hint">Points per occurrence (higher = more impact)</p>
-            
-            <div class="weight-grid">
-              <div class="weight-row">
-                <span>💥 JS Error</span>
-                <input type="number" id="weight-jsError" value="40" min="0" max="100">
-              </div>
-              <div class="weight-row">
-                <span>🌐 Network Error</span>
-                <input type="number" id="weight-networkError" value="40" min="0" max="100">
-              </div>
-              <div class="weight-row">
-                <span>😤 Rage Click</span>
-                <input type="number" id="weight-rageClick" value="25" min="0" max="100">
-              </div>
-              <div class="weight-row">
-                <span>🚪 Abandonment</span>
-                <input type="number" id="weight-formAbandonment" value="20" min="0" max="100">
-              </div>
-              <div class="weight-row">
-                <span>🔄 Validation Loop</span>
-                <input type="number" id="weight-validationLoop" value="15" min="0" max="100">
-              </div>
-              <div class="weight-row">
-                <span>👆 Dead Click</span>
-                <input type="number" id="weight-deadClick" value="10" min="0" max="100">
-              </div>
-            </div>
-          </div>
-          
-          <div class="settings-card">
-            <h4>📏 Thresholds</h4>
-            <div class="threshold-grid">
-              <div class="threshold-row critical">
-                <span>🚨 Critical</span>
-                <input type="number" id="threshold-critical" value="80" min="0" max="200">
-              </div>
-              <div class="threshold-row review">
-                <span>⚠️ Review</span>
-                <input type="number" id="threshold-review" value="50" min="0" max="200">
-              </div>
-            </div>
-            <p class="settings-hint">Score ≥ Critical → Alert | Score ≥ Review → Flag</p>
-          </div>
-        </div>
-      </div>
-      
-      <!-- TAB 3: Settings -->
-      <div id="config-tab-settings" class="config-tab-content hidden">
-        <div class="settings-card">
-          <h4>✅ Form Completion</h4>
-          <p class="settings-hint">CSS selector for success state (detects form completion)</p>
-          <input type="text" id="completion-selector" class="settings-input" 
-                 placeholder=".success-message, #thank-you, [data-recap-complete]">
-        </div>
-        
-        <div class="settings-card">
-          <h4>🐛 Report Button</h4>
-          <p class="settings-hint">Let users report issues during the session</p>
-          
-          <div class="setting-row">
-            <label class="checkbox-label">
-              <input type="checkbox" id="report-enabled">
-              <span>Enable Report Button</span>
+        <!-- Full Quality Settings -->
+        <div class="setup-section">
+          <div class="setting-group">
+            <label class="toggle-label">
+              <span>Enable Quality Detection</span>
+              <input type="checkbox" id="setup-quality-enabled" checked>
             </label>
           </div>
           
-          <div class="setting-row">
-            <label>Show Mode</label>
-            <select id="report-mode">
-              <option value="on_error">On Error (when issues detected)</option>
-              <option value="always">Always Visible</option>
-              <option value="disabled">Disabled</option>
-            </select>
+          <div class="setup-quality-settings" id="setup-quality-settings">
+            <div class="setting-group">
+              <label>Report Button</label>
+              <select id="setup-report-mode">
+                <option value="on_error">Show on Error</option>
+                <option value="always">Always Show</option>
+                <option value="disabled">Disabled</option>
+              </select>
+            </div>
+            
+            <!-- Collapsible Advanced Settings -->
+            <div class="collapsible-section">
+              <button class="collapsible-header" id="toggle-thresholds">
+                <span>Thresholds</span>
+                <svg class="chevron" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path d="M4 6 L8 10 L12 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+              <div class="collapsible-content" id="thresholds-content">
+                <div class="slider-group">
+                  <div class="slider-item">
+                    <div class="slider-header">
+                      <span class="slider-icon">⚠️</span>
+                      <span>Review</span>
+                      <span class="slider-value" id="setup-threshold-review-val">50</span>
+                    </div>
+                    <input type="range" id="setup-threshold-review" value="50" min="0" max="100" step="5" class="slider slider-amber">
+                  </div>
+                  <div class="slider-item">
+                    <div class="slider-header">
+                      <span class="slider-icon">🔴</span>
+                      <span>Critical</span>
+                      <span class="slider-value" id="setup-threshold-critical-val">80</span>
+                    </div>
+                    <input type="range" id="setup-threshold-critical" value="80" min="0" max="100" step="5" class="slider slider-red">
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="collapsible-section">
+              <button class="collapsible-header" id="toggle-weights">
+                <span>Detector Weights</span>
+                <svg class="chevron" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path d="M4 6 L8 10 L12 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+              <div class="collapsible-content collapsed" id="weights-content">
+                <div class="weight-grid">
+                  <div class="weight-item">
+                    <div class="weight-label">
+                      <span class="weight-icon">🔴</span>
+                      <span>JS Error</span>
+                    </div>
+                    <div class="weight-slider">
+                      <input type="range" id="setup-weight-jsError" value="40" min="0" max="100" step="5" class="slider">
+                      <span class="slider-value" id="setup-weight-jsError-val">40</span>
+                    </div>
+                  </div>
+                  <div class="weight-item">
+                    <div class="weight-label">
+                      <span class="weight-icon">🌐</span>
+                      <span>Network</span>
+                    </div>
+                    <div class="weight-slider">
+                      <input type="range" id="setup-weight-networkError" value="40" min="0" max="100" step="5" class="slider">
+                      <span class="slider-value" id="setup-weight-networkError-val">40</span>
+                    </div>
+                  </div>
+                  <div class="weight-item">
+                    <div class="weight-label">
+                      <span class="weight-icon">😤</span>
+                      <span>Rage Click</span>
+                    </div>
+                    <div class="weight-slider">
+                      <input type="range" id="setup-weight-rageClick" value="25" min="0" max="100" step="5" class="slider">
+                      <span class="slider-value" id="setup-weight-rageClick-val">25</span>
+                    </div>
+                  </div>
+                  <div class="weight-item">
+                    <div class="weight-label">
+                      <span class="weight-icon">👆</span>
+                      <span>Dead Click</span>
+                    </div>
+                    <div class="weight-slider">
+                      <input type="range" id="setup-weight-deadClick" value="10" min="0" max="100" step="5" class="slider">
+                      <span class="slider-value" id="setup-weight-deadClick-val">10</span>
+                    </div>
+                  </div>
+                  <div class="weight-item">
+                    <div class="weight-label">
+                      <span class="weight-icon">✅</span>
+                      <span>Validation</span>
+                    </div>
+                    <div class="weight-slider">
+                      <input type="range" id="setup-weight-validationLoop" value="15" min="0" max="100" step="5" class="slider">
+                      <span class="slider-value" id="setup-weight-validationLoop-val">15</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
         
-        <div class="settings-card">
-          <h4>📊 Sampling</h4>
-          <p class="settings-hint">Percentage of sessions to record</p>
-          <div class="setting-row">
-            <label>Sample Rate</label>
-            <select id="sampling-rate">
-              <option value="1">100% (All sessions)</option>
-              <option value="0.5">50%</option>
-              <option value="0.25" selected>25%</option>
-              <option value="0.1">10%</option>
-              <option value="0.05">5%</option>
-            </select>
+        <button id="btn-record-new" class="btn btn-primary btn-lg btn-full">
+          🔴 Start Recording
+        </button>
+      </section>
+
+      <!-- View: Has Config -->
+      <section id="view-has-config" class="view hidden">
+        <div class="config-card">
+          <div class="config-header">
+            <h3 id="config-name">Form Name</h3>
+            <span class="config-version" id="config-version">v1</span>
+          </div>
+          <div class="config-stats">
+            <span class="stat" id="stat-clear">✅ 0 clear</span>
+            <span class="stat" id="stat-masked">🔒 0 masked</span>
+            <span class="stat" id="stat-steps">📍 0 steps</span>
+          </div>
+          <div class="config-quality" id="config-quality">
+            <span class="quality-label">Quality Detection:</span>
+            <span class="quality-status">✓ Enabled</span>
           </div>
         </div>
-      </div>
-    </section>
-
-    <!-- VIEW: Config Exists (Main Dashboard) -->
-    <section id="view-dashboard" class="view hidden">
-      <div class="url-bar">
-        <span class="url-icon">📍</span>
-        <span id="dashboard-config-name" class="url-text">Config Name</span>
-        <button id="btn-edit-config" class="btn-icon" title="Edit">✏️</button>
-              </div>
-      
-      <div class="status-card status-active">
-        <div class="status-icon">✅</div>
-        <div class="status-text">
-          <h3>Configuration Active</h3>
-          <div class="status-badges">
-            <span class="badge badge-clear" title="Clear fields (not masked)">✅ <span id="mask-count">0</span></span>
-            <span class="badge badge-ignore" title="Ignored fields">🚫 <span id="ignore-count">0</span></span>
-            <span class="badge badge-step" title="Steps">📍 <span id="step-count">0</span></span>
-            </div>
-          </div>
+        
+        <div class="action-buttons">
+          <!-- Sample implementation disabled -->
+          <!-- <button id="btn-record-update" class="btn btn-primary">
+            🔴 Record New Sample
+          </button> -->
+          <button id="btn-edit-config" class="btn btn-secondary">
+            ✏️ Edit Config
+          </button>
         </div>
-
-      <div class="stats-section">
-        <h3>📊 Quick Stats</h3>
-        <div class="stats-grid">
-          <div class="stat-card">
-            <div class="stat-value" id="stat-sessions">0</div>
-            <div class="stat-label">Sessions</div>
-              </div>
-          <div class="stat-card">
-            <div class="stat-value" id="stat-complete">0%</div>
-            <div class="stat-label">Complete</div>
-            </div>
-          <div class="stat-card">
-            <div class="stat-value" id="stat-errors">0%</div>
-            <div class="stat-label">Errors</div>
-            </div>
+        
+        <div class="export-section">
+          <h4>Add Recap to Your Site</h4>
+          <div class="export-buttons">
+            <button id="btn-export-embed" class="btn btn-outline">
+              📋 Embed Script
+            </button>
+            <button id="btn-export-console" class="btn btn-outline">
+              🖥️ Console Script
+            </button>
           </div>
-        </div>
-
-      <div class="recent-sessions">
-        <div class="section-header">
-          <h3>Recent Sessions</h3>
-          <button id="btn-view-sessions" class="btn btn-link">View All →</button>
-            </div>
-        <div id="recent-sessions-list" class="sessions-list">
-          <!-- Populated dynamically -->
-            </div>
-          </div>
-
-      <div class="dashboard-actions">
-        <button id="btn-rerecord" class="btn">🔄 Re-record</button>
-        <button id="btn-export-config" class="btn">📤 Export JSON</button>
-        <button id="btn-export-embed" class="btn btn-primary">🚀 Export Embed Script</button>
-      </div>
-    </section>
-
-    <!-- VIEW: All Configurations -->
-    <section id="view-configs" class="view hidden">
-      <div class="view-header">
-        <button id="btn-back-from-configs" class="btn-back">← Back</button>
-        <h2>All Configurations</h2>
-      </div>
-      
-      <div class="search-bar">
-        <input type="text" id="search-configs" placeholder="Search configs...">
-      </div>
-      
-      <div id="all-configs-list" class="configs-list">
-        <!-- Populated dynamically -->
-      </div>
-      
-      <div class="list-actions">
-        <button id="btn-import-config" class="btn">📥 Import Config</button>
-        <input type="file" id="import-config-file" accept=".json" hidden>
-            </div>
-    </section>
-
-    <!-- VIEW: All Sessions -->
-    <section id="view-sessions" class="view hidden">
-      <div class="view-header">
-        <button id="btn-back-from-sessions" class="btn-back">← Back</button>
-        <h2>Sessions</h2>
-            </div>
-      
-      <div class="filter-bar">
-        <select id="filter-config">
-          <option value="">All Forms</option>
-        </select>
-        <select id="filter-status">
-          <option value="">All Status</option>
-          <option value="complete">✅ Complete</option>
-          <option value="error">❌ Error</option>
-          <option value="dropped">⏸ Dropped</option>
-        </select>
-          </div>
-
-      <div id="all-sessions-list" class="sessions-list">
-        <!-- Populated dynamically -->
-      </div>
-    </section>
-
-    <!-- VIEW: Session Replay -->
-    <section id="view-replay" class="view hidden">
-      <div class="view-header">
-        <button id="btn-back-from-replay" class="btn-back">← Back</button>
-        <h2>Session Replay</h2>
-            </div>
-      
-      <div class="replay-meta">
-        <span id="replay-session-id" class="session-id">#---</span>
-        <span id="replay-status" class="status-badge">---</span>
-        <span id="replay-duration">00:00</span>
-            </div>
-      
-      <div id="replay-container" class="replay-container">
-        <!-- rrweb player renders here -->
-          </div>
-
-      <div id="replay-controls" class="replay-controls">
-        <!-- Custom controls if needed -->
-            </div>
-    </section>
-
-    <!-- VIEW: Analytics -->
-    <section id="view-analytics" class="view hidden">
-      <div class="view-header">
-        <button id="btn-back-from-analytics" class="btn-back">← Back</button>
-        <h2>Analytics</h2>
-            </div>
-      
-      <div class="filter-bar">
-        <select id="analytics-config">
-          <option value="">Select Form</option>
-        </select>
-        <select id="analytics-period">
-          <option value="7">Last 7 days</option>
-          <option value="30">Last 30 days</option>
-          <option value="90">Last 90 days</option>
-        </select>
-          </div>
-
-      <div class="analytics-content">
-        <div class="funnel-section">
-          <h3>Drop-off Funnel</h3>
-          <div id="funnel-chart" class="funnel-chart">
-            <!-- Populated dynamically -->
-          </div>
-        </div>
-
-        <div class="errors-section">
-          <h3>Error Breakdown</h3>
-          <div id="error-breakdown" class="error-list">
-            <!-- Populated dynamically -->
-        </div>
-      </div>
-
-        <div class="dropoff-section">
-          <h3>Top Drop-off Fields</h3>
-          <div id="dropoff-fields" class="dropoff-list">
-            <!-- Populated dynamically -->
-          </div>
-        </div>
         </div>
       </section>
 
-    <!-- VIEW: Menu -->
-    <section id="view-menu" class="view hidden">
-      <div class="view-header">
-        <button id="btn-close-menu" class="btn-back">← Back</button>
-        <h2>Menu</h2>
-      </div>
-      
-      <nav class="menu-nav">
-        <button id="menu-configs" class="menu-item">
-          <span class="menu-icon">📋</span>
-          <span class="menu-label">All Configurations</span>
-          <span id="menu-config-count" class="menu-badge">0</span>
-        </button>
-        <button id="menu-sessions" class="menu-item">
-          <span class="menu-icon">🎬</span>
-          <span class="menu-label">All Sessions</span>
-          <span id="menu-session-count" class="menu-badge">0</span>
-        </button>
-        <button id="menu-analytics" class="menu-item">
-          <span class="menu-icon">📊</span>
-          <span class="menu-label">Analytics Dashboard</span>
-        </button>
-      </nav>
+      <!-- View: Recording -->
+      <section id="view-recording" class="view hidden">
+        <div class="recording-header">
+          <div class="recording-indicator">
+            <div class="recording-dot"></div>
+            <span>Recording...</span>
+          </div>
+          <button id="btn-stop-recording" class="btn btn-danger">
+            ⏹️ Stop
+          </button>
+        </div>
+        
+        <div class="recording-stats">
+          <div class="stat-item">
+            <span class="stat-value" id="rec-duration">0:00</span>
+            <span class="stat-label">Duration</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value" id="rec-events">0</span>
+            <span class="stat-label">Events</span>
+          </div>
+        </div>
+        
+        <!-- Live Quality Display -->
+        <div id="quality-live" class="quality-live">
+          <div class="quality-header">
+            <span class="quality-title">Quality Score</span>
+            <span class="quality-score-badge" id="quality-score-badge">0</span>
+          </div>
+          <div class="quality-detectors">
+            <div class="detector-item">
+              <span class="detector-icon">🔴</span>
+              <span class="detector-name">JS Errors</span>
+              <span class="detector-count" id="det-jsError">0</span>
+            </div>
+            <div class="detector-item">
+              <span class="detector-icon">🌐</span>
+              <span class="detector-name">Network Errors</span>
+              <span class="detector-count" id="det-networkError">0</span>
+            </div>
+            <div class="detector-item">
+              <span class="detector-icon">😤</span>
+              <span class="detector-name">Rage Clicks</span>
+              <span class="detector-count" id="det-rageClick">0</span>
+            </div>
+            <div class="detector-item">
+              <span class="detector-icon">👆</span>
+              <span class="detector-name">Dead Clicks</span>
+              <span class="detector-count" id="det-deadClick">0</span>
+            </div>
+            <div class="detector-item">
+              <span class="detector-icon">🔄</span>
+              <span class="detector-name">Validation Loops</span>
+              <span class="detector-count" id="det-validationLoop">0</span>
+            </div>
+          </div>
+        </div>
+        
+        <div class="recording-tips">
+          <p>💡 Trigger errors, rage clicks, etc. to test quality detection</p>
+        </div>
+        
+        <div class="live-events-container">
+          <div class="live-events-header">
+            <span>Live Events</span>
+            <div class="live-filters">
+              <button class="live-filter active" data-filter="all">All</button>
+              <button class="live-filter" data-filter="input">Input</button>
+              <button class="live-filter" data-filter="click">Click</button>
+            </div>
+          </div>
+          <div class="live-events-list" id="live-events-list">
+            <div class="live-event-placeholder">Events will appear here...</div>
+          </div>
+        </div>
+      </section>
 
-      <hr class="menu-divider">
-      
-      <nav class="menu-nav">
-        <button id="menu-settings" class="menu-item">
-          <span class="menu-icon">⚙️</span>
-          <span class="menu-label">Settings</span>
-        </button>
-        <button id="menu-export-all" class="menu-item">
-          <span class="menu-icon">📤</span>
-          <span class="menu-label">Export All Data</span>
-              </button>
-        <button id="menu-import" class="menu-item">
-          <span class="menu-icon">📥</span>
-          <span class="menu-label">Import Configuration</span>
-              </button>
-      </nav>
-    </section>
-
-    <!-- VIEW: Settings -->
-    <section id="view-settings" class="view hidden">
-      <div class="view-header">
-        <button id="btn-back-from-settings" class="btn-back">← Back</button>
-        <h2>Settings</h2>
+      <!-- View: Configure -->
+      <section id="view-configure" class="view hidden">
+        <div class="configure-header">
+          <h2>Configure Fields</h2>
+          <button id="btn-cancel-configure" class="btn btn-ghost">✕</button>
+        </div>
+        
+        <div class="form-group">
+          <label for="config-form-name">Form Name</label>
+          <input type="text" id="config-form-name" placeholder="e.g., Credit Card Application">
+        </div>
+        
+        <!-- Sample implementation disabled -->
+        <!-- <div class="sample-section">
+          <div class="sample-info">
+            <span>📎 <span id="sample-events">0</span> events</span>
+            <span>•</span>
+            <span id="sample-duration">0s</span>
+            <span id="sample-status" class="sample-status"></span>
+          </div>
+          <div class="sample-actions">
+            <button id="btn-preview-sample" class="btn btn-sm" title="Preview sample">▶️ Preview</button>
+            <button id="btn-record-new" class="btn btn-sm btn-outline" title="Record new sample">📷 Record New</button>
+          </div>
+          <div id="quality-summary" class="hidden"></div>
+        </div> -->
+        
+        <div class="tabs">
+          <button class="tab active" data-tab="fields">Fields</button>
+          <button class="tab" data-tab="quality">Quality</button>
+          <button class="tab" data-tab="settings">Settings</button>
+        </div>
+        
+        <div class="tab-content" id="tab-fields">
+          <div class="filter-bar">
+            <button class="filter active" data-filter="all">All</button>
+            <button class="filter" data-filter="input">Inputs</button>
+            <button class="filter" data-filter="click">Clicks</button>
+            <button class="filter" data-filter="ignored">Ignored</button>
+          </div>
+          
+          <div class="fields-list" id="fields-list">
+            <!-- Populated dynamically -->
+          </div>
+        </div>
+        
+        <div class="tab-content hidden" id="tab-quality">
+          <div class="setting-group">
+            <label class="toggle-label">
+              <span>Enable Quality Detection</span>
+              <input type="checkbox" id="quality-enabled" checked>
+            </label>
+          </div>
+          
+          <div id="quality-settings">
+            <div class="setting-section">
+              <h4>Report Button</h4>
+              <div class="setting-row">
+                <label>Show Button</label>
+                <select id="report-button-mode">
+                  <option value="always">Always</option>
+                  <option value="on_error" selected>On Error</option>
+                  <option value="disabled">Disabled</option>
+                </select>
+              </div>
             </div>
             
-      <div class="settings-content">
-        <div class="setting-group">
-          <h3>Recording Defaults</h3>
-          
-          <div class="setting-item">
-            <label>Default Sampling Rate</label>
-            <div class="setting-control">
-              <input type="range" id="default-sampling" min="1" max="100" value="25">
-              <span id="sampling-value">25%</span>
-          </div>
-        </div>
-
-          <div class="setting-item">
-            <label>Capture Console Errors</label>
-            <input type="checkbox" id="capture-console" checked>
-          </div>
-          
-          <div class="setting-item">
-            <label>Capture Network Requests</label>
-            <input type="checkbox" id="capture-network" checked>
-          </div>
-        </div>
-
-        <div class="setting-group">
-          <h3>Storage</h3>
-          
-          <div class="setting-item">
-            <label>Storage Backend</label>
-            <select id="storage-backend">
-              <option value="indexeddb">Browser (IndexedDB)</option>
-              <option value="api">Remote API</option>
-            </select>
+            <div class="setting-section">
+              <h4>Thresholds</h4>
+              <div class="slider-grid">
+                <div class="slider-item">
+                  <div class="slider-header">
+                    <span>⚠️ Review</span>
+                    <span class="slider-value" id="threshold-review-val">50</span>
+                  </div>
+                  <input type="range" id="threshold-review" value="50" min="0" max="100" step="5" class="slider slider-amber">
+                </div>
+                <div class="slider-item">
+                  <div class="slider-header">
+                    <span>🔴 Critical</span>
+                    <span class="slider-value" id="threshold-critical-val">80</span>
+                  </div>
+                  <input type="range" id="threshold-critical" value="80" min="0" max="100" step="5" class="slider slider-red">
+                </div>
+              </div>
             </div>
-          
-          <div class="setting-item" id="api-url-setting" style="display:none">
-            <label>API Endpoint</label>
-            <input type="text" id="api-url" placeholder="https://api.example.com/recap">
+            
+            <div class="setting-section">
+              <h4>Detector Weights</h4>
+              <div class="weight-grid">
+                <div class="weight-item">
+                  <span>🔴 JS Error</span>
+                  <div class="weight-slider">
+                    <input type="range" id="weight-jsError" value="40" min="0" max="100" step="5" class="slider">
+                    <span class="slider-value" id="weight-jsError-val">40</span>
+                  </div>
+                </div>
+                <div class="weight-item">
+                  <span>🌐 Network</span>
+                  <div class="weight-slider">
+                    <input type="range" id="weight-networkError" value="40" min="0" max="100" step="5" class="slider">
+                    <span class="slider-value" id="weight-networkError-val">40</span>
+                  </div>
+                </div>
+                <div class="weight-item">
+                  <span>😤 Rage Click</span>
+                  <div class="weight-slider">
+                    <input type="range" id="weight-rageClick" value="25" min="0" max="100" step="5" class="slider">
+                    <span class="slider-value" id="weight-rageClick-val">25</span>
+                  </div>
+                </div>
+                <div class="weight-item">
+                  <span>👆 Dead Click</span>
+                  <div class="weight-slider">
+                    <input type="range" id="weight-deadClick" value="10" min="0" max="100" step="5" class="slider">
+                    <span class="slider-value" id="weight-deadClick-val">10</span>
+                  </div>
+                </div>
+                <div class="weight-item">
+                  <span>🔄 Validation</span>
+                  <div class="weight-slider">
+                    <input type="range" id="weight-validationLoop" value="15" min="0" max="100" step="5" class="slider">
+                    <span class="slider-value" id="weight-validationLoop-val">15</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
+        
+        <div class="tab-content hidden" id="tab-settings">
+          <div class="setting-group">
+            <label>Sampling Rate: <span id="sampling-value">25%</span></label>
+            <input type="range" id="sampling-rate" min="5" max="100" step="5" value="25">
+          </div>
+          
+          <div class="setting-group">
+            <label>Completion Selector</label>
+            <input type="text" id="completion-selector" placeholder=".success-message">
+          </div>
+        </div>
+        
+        <div class="configure-actions">
+          <button id="btn-preview" class="btn btn-secondary">▶ Preview</button>
+          <button id="btn-save-config" class="btn btn-primary">💾 Save Config</button>
+        </div>
+      </section>
 
-        <div class="setting-group">
-          <h3>Data Management</h3>
-          <button id="btn-clear-sessions" class="btn btn-danger">Clear All Sessions</button>
-          <button id="btn-clear-all" class="btn btn-danger">Clear All Data</button>
+      <!-- View: Preview -->
+      <section id="view-preview" class="view hidden">
+        <div class="preview-header">
+          <button id="btn-back-configure" class="btn btn-ghost">← Back</button>
+          <h2>Preview</h2>
+        </div>
+        <div id="player-container" class="player-container"></div>
+      </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <a href="#" id="link-dashboard" class="footer-link">
+        📊 Open Dashboard
+      </a>
+    </footer>
   </div>
-      </div>
-    </section>
 
-  </div>
-
-  <!-- Toast Container -->
-  <div id="toast-container" class="toast-container"></div>
-
-  <!-- Modal for Replay -->
-  <div id="modal-replay" class="modal hidden">
-    <div class="modal-backdrop"></div>
-    <div class="modal-content modal-lg">
-      <div class="modal-header">
-        <h3>Session Replay</h3>
-        <button class="modal-close">×</button>
-      </div>
-      <div id="modal-player-container" class="modal-body"></div>
-    </div>
-  </div>
-
-  <!-- Modal for Export Embed Script -->
+  <!-- Export Modal -->
   <div id="modal-export" class="modal hidden">
-    <div class="modal-backdrop"></div>
-    <div class="modal-content modal-lg">
+    <div class="modal-content">
       <div class="modal-header">
-        <h3>🚀 Production Embed Script</h3>
-        <button class="modal-close">×</button>
+        <h3 id="modal-title">Export Script</h3>
+        <button id="btn-close-modal" class="btn btn-ghost">✕</button>
       </div>
       <div class="modal-body">
-        <!-- Content populated by JS -->
+        <pre id="export-code"></pre>
+      </div>
+      <div class="modal-actions">
+        <button id="btn-copy-code" class="btn btn-primary">📋 Copy</button>
       </div>
     </div>
   </div>
 
-  <!-- Scripts -->
-  <script src="../lib/rrweb.min.js"></script>
-  <script src="../lib/rrweb-player.min.js"></script>
-  
-  <!-- App (ESM) -->
-  <script type="module" src="lib/app.js"></script>
+  <script type="module" src="panel.js"></script>
 </body>
 </html>
+

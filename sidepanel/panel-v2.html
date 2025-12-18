@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Recap</title>
-  <link rel="stylesheet" href="panel-v2.css">
+  <link rel="stylesheet" href="panel.css">
 </head>
 <body>
   <div id="app">
@@ -29,7 +29,8 @@
 
     <!-- Current Page Info -->
     <section class="page-info">
-      <div class="page-url" id="current-url">Loading...</div>
+      <div class="page-title" id="page-title">Loading...</div>
+      <div class="page-domain" id="page-domain"></div>
       <div class="page-status" id="page-status">
         <span class="status-dot"></span>
         <span class="status-text">Checking...</span>
@@ -41,14 +42,97 @@
       
       <!-- View: No Config -->
       <section id="view-no-config" class="view hidden">
-        <div class="empty-state">
-          <div class="empty-icon">📝</div>
-          <h2>No Configuration</h2>
-          <p>Record a sample session to configure field masking for this page.</p>
-          <button id="btn-record-new" class="btn btn-primary btn-lg">
-            🔴 Record Sample
-          </button>
+        <div class="setup-header">
+          <div class="setup-icon">📝</div>
+          <h2>New Configuration</h2>
+          <p>Configure quality detection, then record a sample.</p>
         </div>
+        
+        <!-- Full Quality Settings -->
+        <div class="setup-section">
+          <div class="setting-group">
+            <label class="toggle-label">
+              <span>Enable Quality Detection</span>
+              <input type="checkbox" id="setup-quality-enabled" checked>
+            </label>
+          </div>
+          
+          <div class="setup-quality-settings" id="setup-quality-settings">
+            <div class="setting-group">
+              <label>Report Button</label>
+              <select id="setup-report-mode">
+                <option value="on_error">Show on Error</option>
+                <option value="always">Always Show</option>
+                <option value="disabled">Disabled</option>
+              </select>
+            </div>
+            
+            <div class="setting-group">
+              <label>Thresholds</label>
+              <div class="slider-group">
+                <div class="slider-item">
+                  <div class="slider-header">
+                    <span>⚠️ Review</span>
+                    <span class="slider-value" id="setup-threshold-review-val">50</span>
+                  </div>
+                  <input type="range" id="setup-threshold-review" value="50" min="0" max="100" step="5" class="slider slider-amber">
+                </div>
+                <div class="slider-item">
+                  <div class="slider-header">
+                    <span>🔴 Critical</span>
+                    <span class="slider-value" id="setup-threshold-critical-val">80</span>
+                  </div>
+                  <input type="range" id="setup-threshold-critical" value="80" min="0" max="100" step="5" class="slider slider-red">
+                </div>
+              </div>
+            </div>
+            
+            <div class="setting-group">
+              <label>Detector Weights</label>
+              <div class="weight-grid">
+                <div class="weight-item">
+                  <span>🔴 JS Error</span>
+                  <div class="weight-slider">
+                    <input type="range" id="setup-weight-jsError" value="40" min="0" max="100" step="5" class="slider">
+                    <span class="slider-value" id="setup-weight-jsError-val">40</span>
+                  </div>
+                </div>
+                <div class="weight-item">
+                  <span>🌐 Network</span>
+                  <div class="weight-slider">
+                    <input type="range" id="setup-weight-networkError" value="40" min="0" max="100" step="5" class="slider">
+                    <span class="slider-value" id="setup-weight-networkError-val">40</span>
+                  </div>
+                </div>
+                <div class="weight-item">
+                  <span>😤 Rage Click</span>
+                  <div class="weight-slider">
+                    <input type="range" id="setup-weight-rageClick" value="25" min="0" max="100" step="5" class="slider">
+                    <span class="slider-value" id="setup-weight-rageClick-val">25</span>
+                  </div>
+                </div>
+                <div class="weight-item">
+                  <span>👆 Dead Click</span>
+                  <div class="weight-slider">
+                    <input type="range" id="setup-weight-deadClick" value="10" min="0" max="100" step="5" class="slider">
+                    <span class="slider-value" id="setup-weight-deadClick-val">10</span>
+                  </div>
+                </div>
+                <div class="weight-item">
+                  <span>🔄 Validation</span>
+                  <div class="weight-slider">
+                    <input type="range" id="setup-weight-validationLoop" value="15" min="0" max="100" step="5" class="slider">
+                    <span class="slider-value" id="setup-weight-validationLoop-val">15</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <button id="btn-record-new" class="btn btn-primary btn-lg btn-full">
+          🔴 Start Recording
+        </button>
       </section>
 
       <!-- View: Has Config -->
@@ -114,8 +198,43 @@
           </div>
         </div>
         
+        <!-- Live Quality Display -->
+        <div id="quality-live" class="quality-live">
+          <div class="quality-header">
+            <span class="quality-title">Quality Score</span>
+            <span class="quality-score-badge" id="quality-score-badge">0</span>
+          </div>
+          <div class="quality-detectors">
+            <div class="detector-item">
+              <span class="detector-icon">🔴</span>
+              <span class="detector-name">JS Errors</span>
+              <span class="detector-count" id="det-jsError">0</span>
+            </div>
+            <div class="detector-item">
+              <span class="detector-icon">🌐</span>
+              <span class="detector-name">Network Errors</span>
+              <span class="detector-count" id="det-networkError">0</span>
+            </div>
+            <div class="detector-item">
+              <span class="detector-icon">😤</span>
+              <span class="detector-name">Rage Clicks</span>
+              <span class="detector-count" id="det-rageClick">0</span>
+            </div>
+            <div class="detector-item">
+              <span class="detector-icon">👆</span>
+              <span class="detector-name">Dead Clicks</span>
+              <span class="detector-count" id="det-deadClick">0</span>
+            </div>
+            <div class="detector-item">
+              <span class="detector-icon">🔄</span>
+              <span class="detector-name">Validation Loops</span>
+              <span class="detector-count" id="det-validationLoop">0</span>
+            </div>
+          </div>
+        </div>
+        
         <div class="recording-tips">
-          <p>💡 Fill out the form normally to capture all fields</p>
+          <p>💡 Trigger errors, rage clicks, etc. to test quality detection</p>
         </div>
         
         <div class="live-events-container">
@@ -145,10 +264,18 @@
           <input type="text" id="config-form-name" placeholder="e.g., Credit Card Application">
         </div>
         
-        <div class="sample-info">
-          <span>📎 <span id="sample-events">0</span> events</span>
-          <span>•</span>
-          <span><span id="sample-duration">0s</span></span>
+        <div class="sample-section">
+          <div class="sample-info">
+            <span>📎 <span id="sample-events">0</span> events</span>
+            <span>•</span>
+            <span id="sample-duration">0s</span>
+            <span id="sample-status" class="sample-status"></span>
+          </div>
+          <div class="sample-actions">
+            <button id="btn-preview-sample" class="btn btn-sm" title="Preview sample">▶️ Preview</button>
+            <button id="btn-record-new" class="btn btn-sm btn-outline" title="Record new sample">🔴 Record New</button>
+          </div>
+          <div id="quality-summary" class="hidden"></div>
         </div>
         
         <div class="tabs">
@@ -193,41 +320,62 @@
             
             <div class="setting-section">
               <h4>Thresholds</h4>
-              <div class="setting-row">
-                <label>Critical</label>
-                <input type="number" id="threshold-critical" value="80" min="0" max="200">
-              </div>
-              <div class="setting-row">
-                <label>Review</label>
-                <input type="number" id="threshold-review" value="50" min="0" max="200">
+              <div class="slider-grid">
+                <div class="slider-item">
+                  <div class="slider-header">
+                    <span>⚠️ Review</span>
+                    <span class="slider-value" id="threshold-review-val">50</span>
+                  </div>
+                  <input type="range" id="threshold-review" value="50" min="0" max="100" step="5" class="slider slider-amber">
+                </div>
+                <div class="slider-item">
+                  <div class="slider-header">
+                    <span>🔴 Critical</span>
+                    <span class="slider-value" id="threshold-critical-val">80</span>
+                  </div>
+                  <input type="range" id="threshold-critical" value="80" min="0" max="100" step="5" class="slider slider-red">
+                </div>
               </div>
             </div>
             
             <div class="setting-section">
               <h4>Detector Weights</h4>
-              <div class="setting-row">
-                <label>JS Error</label>
-                <input type="number" id="weight-jsError" value="40" min="0" max="100">
-              </div>
-              <div class="setting-row">
-                <label>Network Error</label>
-                <input type="number" id="weight-networkError" value="40" min="0" max="100">
-              </div>
-              <div class="setting-row">
-                <label>Rage Click</label>
-                <input type="number" id="weight-rageClick" value="25" min="0" max="100">
-              </div>
-              <div class="setting-row">
-                <label>Dead Click</label>
-                <input type="number" id="weight-deadClick" value="10" min="0" max="100">
-              </div>
-              <div class="setting-row">
-                <label>Form Abandonment</label>
-                <input type="number" id="weight-formAbandonment" value="20" min="0" max="100">
-              </div>
-              <div class="setting-row">
-                <label>Validation Loop</label>
-                <input type="number" id="weight-validationLoop" value="15" min="0" max="100">
+              <div class="weight-grid">
+                <div class="weight-item">
+                  <span>🔴 JS Error</span>
+                  <div class="weight-slider">
+                    <input type="range" id="weight-jsError" value="40" min="0" max="100" step="5" class="slider">
+                    <span class="slider-value" id="weight-jsError-val">40</span>
+                  </div>
+                </div>
+                <div class="weight-item">
+                  <span>🌐 Network</span>
+                  <div class="weight-slider">
+                    <input type="range" id="weight-networkError" value="40" min="0" max="100" step="5" class="slider">
+                    <span class="slider-value" id="weight-networkError-val">40</span>
+                  </div>
+                </div>
+                <div class="weight-item">
+                  <span>😤 Rage Click</span>
+                  <div class="weight-slider">
+                    <input type="range" id="weight-rageClick" value="25" min="0" max="100" step="5" class="slider">
+                    <span class="slider-value" id="weight-rageClick-val">25</span>
+                  </div>
+                </div>
+                <div class="weight-item">
+                  <span>👆 Dead Click</span>
+                  <div class="weight-slider">
+                    <input type="range" id="weight-deadClick" value="10" min="0" max="100" step="5" class="slider">
+                    <span class="slider-value" id="weight-deadClick-val">10</span>
+                  </div>
+                </div>
+                <div class="weight-item">
+                  <span>🔄 Validation</span>
+                  <div class="weight-slider">
+                    <input type="range" id="weight-validationLoop" value="15" min="0" max="100" step="5" class="slider">
+                    <span class="slider-value" id="weight-validationLoop-val">15</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -286,7 +434,7 @@
     </div>
   </div>
 
-  <script type="module" src="panel-v2.js"></script>
+  <script type="module" src="panel.js"></script>
 </body>
 </html>
 

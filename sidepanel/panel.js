@@ -76,6 +76,18 @@ function showView(viewId) {
   $$('.view').forEach(v => v.classList.add('hidden'));
   $(`#view-${viewId}`)?.classList.remove('hidden');
   state.view = viewId;
+  
+  // Hide page info section when showing "New Configuration" or "Has Config" to avoid redundancy
+  // (both views show the config name/title, so page-info is redundant)
+  const pageInfoSection = $('#page-info-section');
+  if (pageInfoSection) {
+    if (viewId === 'no-config' || viewId === 'has-config') {
+      pageInfoSection.style.display = 'none';
+    } else {
+      pageInfoSection.style.display = 'block';
+    }
+  }
+  
   console.log('[Panel] View:', viewId);
 }
 
@@ -215,22 +227,21 @@ async function startRecording() {
     return;
   }
   
-  // Notify background that manual recording is starting
-  // This prevents auto-start from interfering
-  chrome.runtime.sendMessage({ 
-    type: 'MANUAL_RECORDING_STARTED', 
-    tabId: state.currentTabId 
-  }).catch(() => {});
-  
   // Send start message to content script
+  // forceRestart: true will stop any existing recording and start fresh
   const response = await sendToTab({
     type: 'START_RECORDING',
-    config: recordingConfig
+    config: recordingConfig,
+    forceRestart: true  // User-initiated recording always restarts
   });
   
   if (!response?.success) {
     updateStatus('Failed to start', 'red');
-    console.error('[Panel] Failed to start recording:', response);
+    console.error('[Recap] Recording start failed:', {
+      error: response?.error || 'Unknown error',
+      config: recordingConfig?.name || 'No config',
+      url: state.currentUrl
+    });
     return;
   }
   
@@ -238,6 +249,15 @@ async function startRecording() {
   state.liveEvents = [];
   showView('recording');
   updateStatus('Recording', 'red');
+  
+  console.log('[Recap] Recording started:', {
+    sessionId: response?.sessionId || 'unknown',
+    configName: recordingConfig?.name || 'No config',
+    configId: recordingConfig?.id,
+    startUrl: state.recordingStartUrl,
+    startTime: new Date(recordingStartTime).toISOString(),
+    timestamp: recordingStartTime
+  });
   
   // Clear live events display
   renderLiveEvents();
@@ -283,6 +303,19 @@ function updateQualityDisplay(quality, severity) {
     badge.className = 'quality-score-badge ' + (severity || 'good');
   }
   
+  // Helper to get count from either old array format or new signals format
+  const getCount = (field) => {
+    // New SDK format: quality.signals.jsErrors (number)
+    if (quality.signals && typeof quality.signals[field] === 'number') {
+      return quality.signals[field];
+    }
+    // Old extension format: quality.jsErrors (array)
+    if (Array.isArray(quality[field])) {
+      return quality[field].length;
+    }
+    return 0;
+  };
+  
   // Update individual detector counts
   const updateDetector = (id, count) => {
     const el = $(`#det-${id}`);
@@ -292,11 +325,11 @@ function updateQualityDisplay(quality, severity) {
     }
   };
   
-  updateDetector('jsError', quality.jsErrors?.length || 0);
-  updateDetector('networkError', quality.networkErrors?.length || 0);
-  updateDetector('rageClick', quality.rageClicks?.length || 0);
-  updateDetector('deadClick', quality.deadClicks?.length || 0);
-  updateDetector('validationLoop', quality.validationLoops?.length || 0);
+  updateDetector('jsError', getCount('jsErrors'));
+  updateDetector('networkError', getCount('networkErrors'));
+  updateDetector('rageClick', getCount('rageClicks'));
+  updateDetector('deadClick', getCount('deadClicks'));
+  updateDetector('validationLoop', getCount('validationLoops'));
 }
 
 function renderLiveEvents() {
@@ -347,14 +380,30 @@ async function stopRecording() {
     return;
   }
   
-  state.sampleEvents = response.events || [];
-  state.sampleDuration = Date.now() - recordingStartTime;
-  state.sampleQuality = response.quality || null;
+  // Sample implementation disabled - don't store sample events
+  // state.sampleEvents = response.events || [];
+  // state.sampleDuration = Date.now() - recordingStartTime;
+  // state.sampleQuality = response.quality || null;
+  state.sampleEvents = [];
+  state.sampleDuration = 0;
+  state.sampleQuality = null;
   
-  console.log('[Panel] Recorded:', state.sampleEvents.length, 'events');
-  if (state.sampleQuality) {
-    console.log('[Panel] Quality score:', state.sampleQuality.score, state.sampleQuality.severity);
-  }
+  const endTime = Date.now();
+  const duration = state.sampleDuration;
+  
+  console.log('[Recap] Recording ended:', {
+    eventCount: state.sampleEvents.length,
+    durationMs: duration,
+    durationFormatted: formatDuration(duration),
+    qualityScore: state.sampleQuality?.score || 0,
+    qualitySeverity: state.sampleQuality?.severity || 'normal',
+    qualitySignals: state.sampleQuality?.signals || {},
+    startTime: recordingStartTime ? new Date(recordingStartTime).toISOString() : null,
+    endTime: new Date(endTime).toISOString(),
+    startUrl: state.recordingStartUrl,
+    hasSnapshot: state.sampleEvents.some(e => e.type === 2),
+    snapshotCount: state.sampleEvents.filter(e => e.type === 2).length
+  });
   
   // Extract fields from events
   state.detectedFields = extractFieldsFromEvents(state.sampleEvents);
@@ -531,38 +580,53 @@ function showConfigureView() {
   const formName = state.config?.name || state.recordingStartTitle || state.pageTitle || 'New Form';
   $('#config-form-name').value = formName;
   
+  // Sample implementation disabled
   // Update sample info
-  $('#sample-events').textContent = state.sampleEvents.length;
-  $('#sample-duration').textContent = formatDuration(state.sampleDuration);
+  // $('#sample-events').textContent = state.sampleEvents.length;
+  // $('#sample-duration').textContent = formatDuration(state.sampleDuration);
   
   // Update sample status and buttons
-  const sampleStatus = $('#sample-status');
-  const previewBtn = $('#btn-preview-sample');
-  const hasSavedSample = state.config?.sample?.recording_id;
-  const hasCurrentSample = state.sampleEvents.length > 0;
+  // const sampleStatus = $('#sample-status');
+  // const previewBtn = $('#btn-preview-sample');
+  // const hasSavedSample = state.config?.sample?.recording_id;
+  // const hasCurrentSample = state.sampleEvents.length > 0;
   
-  if (hasCurrentSample) {
-    sampleStatus.textContent = hasSavedSample ? '✓ Saved' : 'New';
-    sampleStatus.className = 'sample-status ' + (hasSavedSample ? 'saved' : 'new');
-    previewBtn.disabled = false;
-    previewBtn.style.opacity = '1';
-  } else {
-    sampleStatus.textContent = '';
-    sampleStatus.className = 'sample-status';
-    previewBtn.disabled = true;
-    previewBtn.style.opacity = '0.5';
-  }
+  // if (hasCurrentSample) {
+  //   sampleStatus.textContent = hasSavedSample ? '✓ Saved' : 'New';
+  //   sampleStatus.className = 'sample-status ' + (hasSavedSample ? 'saved' : 'new');
+  //   previewBtn.disabled = false;
+  //   previewBtn.style.opacity = '1';
+  // } else {
+  //   sampleStatus.textContent = '';
+  //   sampleStatus.className = 'sample-status';
+  //   previewBtn.disabled = true;
+  //   previewBtn.style.opacity = '0.5';
+  // }
   
   // Display quality summary if available
   const qualitySummary = $('#quality-summary');
   if (qualitySummary && state.sampleQuality) {
     const q = state.sampleQuality;
-    const severityColors = { critical: '#ef4444', review: '#f59e0b', good: '#10b981' };
+    const severityColors = { critical: '#ef4444', review: '#f59e0b', good: '#10b981', normal: '#10b981' };
+    
+    // Handle both old array format and new signals format
+    const getCount = (field) => {
+      // New SDK format: q.signals.jsErrors (number)
+      if (q.signals && typeof q.signals[field] === 'number') {
+        return q.signals[field];
+      }
+      // Old extension format: q.jsErrors (array)
+      if (Array.isArray(q[field])) {
+        return q[field].length;
+      }
+      return 0;
+    };
+    
     const issues = [];
-    if (q.jsErrors?.length) issues.push(`${q.jsErrors.length} JS errors`);
-    if (q.networkErrors?.length) issues.push(`${q.networkErrors.length} network errors`);
-    if (q.rageClicks?.length) issues.push(`${q.rageClicks.length} rage clicks`);
-    if (q.deadClicks?.length) issues.push(`${q.deadClicks.length} dead clicks`);
+    if (getCount('jsErrors')) issues.push(`${getCount('jsErrors')} JS errors`);
+    if (getCount('networkErrors')) issues.push(`${getCount('networkErrors')} network errors`);
+    if (getCount('rageClicks')) issues.push(`${getCount('rageClicks')} rage clicks`);
+    if (getCount('deadClicks')) issues.push(`${getCount('deadClicks')} dead clicks`);
     
     qualitySummary.innerHTML = `
       <div style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: ${severityColors[q.severity] || '#10b981'}15; border-radius: 6px; margin-top: 8px;">
@@ -767,12 +831,9 @@ async function saveConfiguration() {
       sampling_rate: (parseInt($('#sampling-rate').value) || 25) / 100
     },
     
+    // Sample implementation disabled
     // Sample metadata (full events saved separately)
-    sample: {
-      event_count: state.sampleEvents.length,
-      duration_ms: state.sampleDuration,
-      recorded_at: new Date().toISOString()
-    }
+    sample: null
   };
   
   console.log('[Panel] Saving config:', config.name);
@@ -780,85 +841,121 @@ async function saveConfiguration() {
   try {
     updateStatus('Saving...', 'yellow');
     
-    // Save the sample recording if we have events
-    if (state.sampleEvents.length > 0) {
-      updateStatus('Saving sample recording...', 'yellow');
-      
-      // Build quality data similar to report button
-      const qualityData = state.sampleQuality || {};
-      const quality = {
-        score: qualityData.score || 0,
-        severity: qualityData.severity || 'normal',
-        signals: {
-          jsErrors: qualityData.jsErrors?.length || 0,
-          networkErrors: qualityData.networkErrors?.length || 0,
-          rageClicks: qualityData.rageClicks?.length || 0,
-          deadClicks: qualityData.deadClicks?.length || 0,
-          validationLoops: qualityData.validationLoops?.length || 0
-        },
-        // Include detailed error data
-        details: {
-          jsErrors: qualityData.jsErrors || [],
-          networkErrors: qualityData.networkErrors || [],
-          rageClicks: qualityData.rageClicks || [],
-          deadClicks: qualityData.deadClicks || [],
-          validationLoops: qualityData.validationLoops || []
-        },
-        thresholds: {
-          critical: config.sessionQuality?.thresholds?.critical || 80,
-          review: config.sessionQuality?.thresholds?.review || 50
-        },
-        weights: config.sessionQuality?.weights || {}
-      };
-      
-      const sampleRecording = {
-        session_id: `sample_${Date.now()}`,
-        config_id: config.id || 'pending',
-        form_name: `[Sample] ${name}`,
-        url_pattern: configUrl,
-        events: state.sampleEvents,
-        event_count: state.sampleEvents.length,
-        duration_ms: state.sampleDuration,
-        start_time: new Date(Date.now() - state.sampleDuration).toISOString(),
-        end_time: new Date().toISOString(),
-        timestamp: new Date().toISOString(),
-        is_sample: true,
-        
-        // Include quality data like report button
-        quality,
-        
-        metadata: {
-          url: configUrl,
-          user_agent: navigator.userAgent,
-          sdk_version: 'extension-3.2.0',
-          recorded_by: 'extension',
-          page_title: state.pageTitle || document.title
-        }
-      };
-      
-      console.log('[Panel] Saving sample with quality:', quality);
-      
-      try {
-        const sampleResult = await api.saveRecording(sampleRecording);
-        config.sample.recording_id = sampleResult.id;
-        console.log('[Panel] Sample recording saved:', sampleResult.id);
-      } catch (e) {
-        console.warn('[Panel] Failed to save sample recording:', e);
-        // Continue saving config even if sample fails
-      }
-    }
-    
+    // Save config first (fast operation)
     const result = await api.saveConfig(config);
     console.log('[Panel] Config saved:', result);
     
-    state.config = result.config || config;
-    state.config.id = result.config?.id || result.id;
+    // Keep local config (has all fields), just update id from server
+    state.config = config;
+    state.config.id = result.config?.id || result.id || config.id;
+    state.config.version = result.config?.version || config.version || 1;
     
+    console.log('[Panel] Updated state.config:', state.config);
+    
+    // Show success immediately
     showHasConfigView();
     updateStatus('Saved!', 'green');
+    
+    // Sample implementation disabled
+    // Save sample recording in background (fire and forget)
+    // if (state.sampleEvents.length > 0) {
+    //   saveSampleRecordingInBackground(config, configUrl, name).catch(e => {
+    //     console.warn('[Panel] Background sample save failed:', e);
+    //     // Optionally show a subtle notification that sample is still uploading
+    //   });
+    // }
   } catch (e) {
     console.error('[Panel] Failed to save config:', e);
     updateStatus('Save failed - check API', 'red');
+  }
+}
+
+/**
+ * Save sample recording in background (non-blocking)
+ */
+async function saveSampleRecordingInBackground(config, configUrl, name) {
+  // Build quality data - handle both old array format and new signals format
+  const qualityData = state.sampleQuality || {};
+  
+  // Helper to get count from either format
+  const getSignalCount = (field) => {
+    // New SDK format: signals.jsErrors (number)
+    if (qualityData.signals && typeof qualityData.signals[field] === 'number') {
+      return qualityData.signals[field];
+    }
+    // Old extension format: jsErrors (array)
+    if (Array.isArray(qualityData[field])) {
+      return qualityData[field].length;
+    }
+    return 0;
+  };
+  
+  const quality = {
+    score: qualityData.score || 0,
+    severity: qualityData.severity || 'normal',
+    signals: {
+      jsErrors: getSignalCount('jsErrors'),
+      networkErrors: getSignalCount('networkErrors'),
+      rageClicks: getSignalCount('rageClicks'),
+      deadClicks: getSignalCount('deadClicks'),
+      validationLoops: getSignalCount('validationLoops')
+    },
+    // Include detailed error data
+    details: {
+      jsErrors: qualityData.jsErrors || [],
+      networkErrors: qualityData.networkErrors || [],
+      rageClicks: qualityData.rageClicks || [],
+      deadClicks: qualityData.deadClicks || [],
+      validationLoops: qualityData.validationLoops || []
+    },
+    thresholds: {
+      critical: config.sessionQuality?.thresholds?.critical || 80,
+      review: config.sessionQuality?.thresholds?.review || 50
+    },
+    weights: config.sessionQuality?.weights || {}
+  };
+  
+  const sampleRecording = {
+    session_id: `sample_${Date.now()}`,
+    config_id: config.id || state.config?.id || 'pending',
+    form_name: `[Sample] ${name}`,
+    url_pattern: configUrl,
+    events: state.sampleEvents,
+    event_count: state.sampleEvents.length,
+    duration_ms: state.sampleDuration,
+    start_time: new Date(Date.now() - state.sampleDuration).toISOString(),
+    end_time: new Date().toISOString(),
+    timestamp: new Date().toISOString(),
+    is_sample: true,
+    
+    // Include quality data like report button
+    quality,
+    
+    metadata: {
+      url: configUrl,
+      user_agent: navigator.userAgent,
+      sdk_version: 'extension-3.2.0',
+      recorded_by: 'extension',
+      page_title: state.pageTitle || document.title
+    }
+  };
+  
+  console.log('[Panel] Saving sample recording in background...');
+  
+  try {
+    const sampleResult = await api.saveRecording(sampleRecording);
+    
+    // Update config with sample recording ID if available
+    if (state.config && sampleResult?.id) {
+      if (!state.config.sample) {
+        state.config.sample = {};
+      }
+      state.config.sample.recording_id = sampleResult.id;
+      console.log('[Panel] Sample recording saved:', sampleResult.id);
+    }
+  } catch (e) {
+    console.warn('[Panel] Failed to save sample recording:', e);
+    // Don't throw - this is background operation
   }
 }
 
@@ -971,11 +1068,12 @@ async function init() {
     return;
   }
   
+  // Sample implementation disabled
   // Don't reinit if we're configuring with sample data
-  if (state.view === 'configure' && state.sampleEvents?.length > 0) {
-    console.log('[Panel] Skipping init - configuring recorded session');
-    return;
-  }
+  // if (state.view === 'configure' && state.sampleEvents?.length > 0) {
+  //   console.log('[Panel] Skipping init - configuring recorded session');
+  //   return;
+  // }
   
   // Get current tab
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -983,13 +1081,6 @@ async function init() {
     updateStatus('No active tab', 'red');
     return;
   }
-  
-  // Notify background that sidepanel is open for this tab
-  // This prevents auto-start recording while user has manual control
-  chrome.runtime.sendMessage({ 
-    type: 'SIDEPANEL_OPENED', 
-    tabId: tab.id 
-  }).catch(() => {});
   
   state.currentTabId = tab.id;
   state.currentUrl = tab.url;
@@ -1021,19 +1112,35 @@ async function init() {
     
     if (config) {
       state.config = config;
-      console.log('[Panel] Config found:', config.name);
+      console.log('[Recap] Configuration loading completed:', {
+        configId: config.id,
+        configName: config.name,
+        configVersion: config.version,
+        url: tab.url,
+        hasFields: !!(config.fields && (config.fields.clear?.length || config.fields.masked?.length || config.fields.steps?.length)),
+        qualityEnabled: config.sessionQuality?.enabled !== false
+      });
       updateStatus('Config found', 'green');
       showHasConfigView();
     } else {
       state.config = null;
-      console.log('[Panel] No config for URL');
-      updateStatus('No config', 'yellow');
+      console.log('[Recap] Configuration loading completed: No config found for URL:', tab.url);
+      // Don't show "No config" status when showing "New Configuration" view (redundant)
       showView('no-config');
     }
   } catch (e) {
-    console.warn('[Panel] API unavailable:', e.message);
+    console.warn('[Recap] Configuration loading failed:', {
+      error: e.message,
+      url: tab.url,
+      stack: e.stack
+    });
     state.config = null;
     updateStatus('API offline', 'yellow');
+    // Show status for API errors, but hide when showing "New Configuration"
+    const pageInfoSection = $('#page-info-section');
+    if (pageInfoSection) {
+      pageInfoSection.style.display = 'block';
+    }
     showView('no-config');
   }
 }
@@ -1044,16 +1151,6 @@ async function init() {
 
 document.addEventListener('DOMContentLoaded', () => {
   init();
-  
-  // Notify background when sidepanel is closed
-  window.addEventListener('beforeunload', () => {
-    if (state.currentTabId) {
-      chrome.runtime.sendMessage({ 
-        type: 'SIDEPANEL_CLOSED', 
-        tabId: state.currentTabId 
-      }).catch(() => {});
-    }
-  });
   
   // Dashboard links
   $('#btn-dashboard').addEventListener('click', () => {
@@ -1066,12 +1163,14 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   
   // Recording
-  $('#btn-record-new').addEventListener('click', startRecording);
-  $('#btn-record-update').addEventListener('click', startRecording);
+  // Sample implementation disabled - comment out sample recording buttons
+  // $('#btn-record-new').addEventListener('click', startRecording);
+  // $('#btn-record-update').addEventListener('click', startRecording);
   $('#btn-stop-recording').addEventListener('click', stopRecording);
   
+  // Sample implementation disabled
   // Preview sample from configure view
-  $('#btn-preview-sample').addEventListener('click', showPreview);
+  // $('#btn-preview-sample').addEventListener('click', showPreview);
   
   // Live event filters
   $$('.live-filter').forEach(btn => {
@@ -1081,6 +1180,21 @@ document.addEventListener('DOMContentLoaded', () => {
       state.liveFilter = btn.dataset.filter;
       renderLiveEvents();
     });
+  });
+  
+  // Collapsible sections
+  $('#toggle-thresholds')?.addEventListener('click', () => {
+    const header = $('#toggle-thresholds');
+    const content = $('#thresholds-content');
+    header.classList.toggle('active');
+    content.classList.toggle('collapsed');
+  });
+  
+  $('#toggle-weights')?.addEventListener('click', () => {
+    const header = $('#toggle-weights');
+    const content = $('#weights-content');
+    header.classList.toggle('active');
+    content.classList.toggle('collapsed');
   });
   
   // Configure
@@ -1115,26 +1229,29 @@ document.addEventListener('DOMContentLoaded', () => {
       state.detectedFields.push({ ...f, type: 'click', action: 'step' });
     });
     
+    // Sample implementation disabled
     // Load saved sample recording if available
-    const sampleId = state.config?.sample?.recording_id;
-    if (sampleId) {
-      try {
-        updateStatus('Loading sample recording...', 'yellow');
-        const recording = await api.getRecording(sampleId);
-        if (recording?.events) {
-          state.sampleEvents = recording.events;
-          state.sampleDuration = recording.duration_ms || state.config?.sample?.duration_ms || 0;
-          console.log('[Panel] Loaded sample recording:', state.sampleEvents.length, 'events');
-        }
-      } catch (e) {
-        console.warn('[Panel] Failed to load sample recording:', e);
-        state.sampleEvents = [];
-        state.sampleDuration = 0;
-      }
-    } else {
-      state.sampleEvents = [];
-      state.sampleDuration = state.config?.sample?.duration_ms || 0;
-    }
+    // const sampleId = state.config?.sample?.recording_id;
+    // if (sampleId) {
+    //   try {
+    //     updateStatus('Loading sample recording...', 'yellow');
+    //     const recording = await api.getRecording(sampleId);
+    //     if (recording?.events) {
+    //       state.sampleEvents = recording.events;
+    //       state.sampleDuration = recording.duration_ms || state.config?.sample?.duration_ms || 0;
+    //       console.log('[Panel] Loaded sample recording:', state.sampleEvents.length, 'events');
+    //     }
+    //   } catch (e) {
+    //     console.warn('[Panel] Failed to load sample recording:', e);
+    //     state.sampleEvents = [];
+    //     state.sampleDuration = 0;
+    //   }
+    // } else {
+    //   state.sampleEvents = [];
+    //   state.sampleDuration = state.config?.sample?.duration_ms || 0;
+    // }
+    state.sampleEvents = [];
+    state.sampleDuration = 0;
     
     showConfigureView();
   });

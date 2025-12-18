@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Recap - Session Recording",
-  "version": "3.1.0",
+  "version": "0.1.0",
   "description": "Record, configure, and replay user sessions with PII masking (ESM)",
   
   "permissions": [
@@ -26,7 +26,7 @@
   },
   
   "side_panel": {
-    "default_path": "sidepanel/panel-v2.html"
+    "default_path": "sidepanel/panel.html"
   },
   
   "background": {
@@ -36,7 +36,7 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["content/content-v2.js"],
+      "js": ["content/content.js"],
       "run_at": "document_start"
     }
   ],
